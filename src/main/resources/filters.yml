@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# Filter Chain Definitions
+# ---------------------------------------------------------------------------
+# Each filter is a pure YAML definition — no code changes needed to add one.
+# Filters are auto-sorted: non-stopping filters run before stopping filters.
+#
+# Condition types (simple):
+#   sender-contains, sender-matches, subject-contains, subject-matches,
+#   body-contains, header-equals
+#
+# Condition types (LLM-powered):
+#   llm-prompt — sends email content to LLM, compares response to 'expect'
+#
+# Two levels of nesting max. No deeper.
+# ---------------------------------------------------------------------------
+
+emailfilter:
+  filter-engine:
+    filters:
+
+      # --- Example: Flyer / deal filter ---
+      - name: flyer-filter
+        enabled: true
+        description: "Catches promotional flyers and deal emails from known retailers"
+        stop-on-match: false
+        subject-tag: "[FLYER: {matched_item}]"
+        conditions:
+          operator: AND
+          groups:
+            - operator: OR
+              rules:
+                - type: sender-contains
+                  value: "bestbuy.com"
+                - type: sender-contains
+                  value: "staples.com"
+                - type: sender-contains
+                  value: "amazon.com"
+          rules: []
+        actions:
+          on-match: tag
+          on-no-match: none
+          move-to: null
+
+      # --- Example: Steam sale filter with LLM condition ---
+      - name: steam-sale-filter
+        enabled: true
+        description: "Detects Steam game sale notifications"
+        stop-on-match: false
+        subject-tag: "[STEAM: {matched_item}]"
+        conditions:
+          operator: AND
+          groups: []
+          rules:
+            - type: sender-contains
+              value: "steampowered.com"
+            - type: llm-prompt
+              prompt: "Does this email announce a game sale or discount? YES or NO only."
+              expect: "YES"
+              value: null
+              not: false
+        actions:
+          on-match: tag
+          on-no-match: none
+          move-to: null
+
+      # --- Example: Stopping filter — archive old newsletters ---
+      - name: newsletter-archive
+        enabled: false
+        description: "Archives newsletters older than 7 days"
+        stop-on-match: true
+        subject-tag: null
+        conditions:
+          operator: AND
+          groups: []
+          rules:
+            - type: subject-contains
+              value: "newsletter"
+              not: false
+              prompt: null
+              expect: null
+        actions:
+          on-match: move
+          on-no-match: none
+          move-to: Archive/Newsletters

@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: AIEmailProcessingPlatform
+
+  # --- Spring AI / Ollama configuration ---
+  ai:
+    ollama:
+      base-url: http://192.168.10.180:11434
+      chat:
+        options:
+          model: mistral
+          temperature: 0.7
+
+# ---------------------------------------------------------------------------
+# Email Filter Configuration
+# ---------------------------------------------------------------------------
+emailfilter:
+
+  # --- IMAP accounts to monitor ---
+  # Each account runs its own IMAP IDLE connection.
+  # Passwords come from environment variables — never hardcode secrets.
+  accounts:
+    - name: personal
+      host: imap.example.com
+      username: user@example.com
+      password: ${IMAP_PASSWORD_PERSONAL}
+      folders:
+        inbox: INBOX
+        review: LLM-Spam-Review
+        junk: Junk
+      filters:
+        - spam-filter
+        - flyer-filter
+
+  # --- SpamAssassin daemon (Layer 2 — header/Bayesian analysis) ---
+  spamassassin:
+    host: 192.168.10.180
+    port: 783
+
+  # --- Spam filter (gate — always runs first) ---
+  spam-filter:
+    enabled: true
+    # Model used for Layer 3 semantic analysis
+    ollama-model: mistral
+    # If SpamAssassin score exceeds this, skip the LLM call entirely
+    skip-llm-above-score: 8.0
+    # Scoring layer weights (must sum to 1.0)
+    weights:
+      preprocessor: 0.20
+      spamassassin: 0.35
+      llm: 0.45
+    # Score thresholds: 1–safeMax = safe, safeMax+1–reviewMax = review, reviewMax+1–10 = spam
+    thresholds:
+      safe-max: 3
+      review-max: 6
+    # IMAP actions per spam tier
+    actions:
+      safe: none
+      review: move-to-review
+      spam: move-to-junk
+
+  # --- Filter engine ---
+  # Filters are loaded from this section (or a separate filters.yml).
+  # See src/main/resources/filters.yml for the filter chain definitions.
+  filter-engine:
+    filters: []
+
+  # --- Management / reload API ---
+  # Runs on a separate port, internal network only.
+  # POST /api/reload/filters, /api/reload/brands, /api/reload/all
+  reload:
+    port: 8081
+    api-key: ${RELOAD_API_KEY}

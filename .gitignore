@@ -1,0 +1,25 @@
+HELP.md
+.gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+
+### IntelliJ IDEA ###
+.idea
+.idea/                  # IntelliJ files (optional, some people commit these)
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+.env                    # secrets — never commit this
+*.env                   # any env files
+application-local.yml   # any local overrides
+
+*.class
+
