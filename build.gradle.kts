@@ -4,6 +4,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.13"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.palantir.java-format") version "2.38.0"
 }
 
 group = "ca.aksentiev"

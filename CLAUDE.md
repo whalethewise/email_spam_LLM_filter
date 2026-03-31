@@ -151,7 +151,7 @@ Email arrives via IMAP IDLE
 Spam Filter (always first — gate)
         │
         ├── Score 7-10 → tag subject + action → STOP
-        ├── Score 4-6  → tag subject + action → STOP  
+        ├── Score 4-6  → tag subject + action → STOP
         └── Score 1-3  → continue to filter chain
                 │
                 ▼

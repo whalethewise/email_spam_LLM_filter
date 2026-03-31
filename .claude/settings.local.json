@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./gradlew build:*)"
+      "Bash(./gradlew build:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew formatJava 2>&1)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(git stash:*)",
+      "Bash(./gradlew clean:*)"
     ]
   }
 }
