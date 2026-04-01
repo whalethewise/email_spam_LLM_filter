@@ -3,6 +3,7 @@ package ca.aksentiev.emailfilter.email.imap;
 import java.util.List;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
+import ca.aksentiev.emailfilter.config.ImapProperties;
 import ca.aksentiev.emailfilter.email.EmailProcessingQueue;
 import ca.aksentiev.emailfilter.email.parser.EmailParsingService;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 @ExtendWith(MockitoExtension.class)
 class ImapIdleMonitorTest {
 
+    private final ImapProperties imapProperties = new ImapProperties();
+
     @Mock
     private EmailParsingService parsingService;
 
@@ -24,7 +27,7 @@ class ImapIdleMonitorTest {
     @Test
     void startWithNoAccountsDoesNotThrow() {
         AccountProperties props = new AccountProperties(List.of());
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
 
         assertThatCode(monitor::start).doesNotThrowAnyException();
 
@@ -34,7 +37,7 @@ class ImapIdleMonitorTest {
     @Test
     void startWithNullAccountsDoesNotThrow() {
         AccountProperties props = new AccountProperties(null);
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
 
         assertThatCode(monitor::start).doesNotThrowAnyException();
 
@@ -44,7 +47,7 @@ class ImapIdleMonitorTest {
     @Test
     void shutdownBeforeStartDoesNotThrow() {
         AccountProperties props = new AccountProperties(List.of());
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
 
         assertThatCode(monitor::shutdown).doesNotThrowAnyException();
     }
@@ -59,16 +62,17 @@ class ImapIdleMonitorTest {
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
 
         AccountProperties props = new AccountProperties(List.of(account1, account2));
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
 
         monitor.start();
 
         // Give threads a moment to start (they'll fail to connect and enter backoff)
         Thread.sleep(200);
 
-        // Verify threads were created by checking thread names
+        // Verify threads were created by checking for the exact thread names this test owns
         long idleThreadCount = Thread.getAllStackTraces().keySet().stream()
-                .filter(t -> t.getName().startsWith("imap-idle-"))
+                .filter(t -> t.getName().equals("imap-idle-personal")
+                        || t.getName().equals("imap-idle-work"))
                 .count();
 
         try {
@@ -86,7 +90,7 @@ class ImapIdleMonitorTest {
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
 
         AccountProperties props = new AccountProperties(List.of(account));
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
 
         monitor.start();
         Thread.sleep(200);

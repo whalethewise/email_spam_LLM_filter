@@ -30,11 +30,13 @@ public class EmailProcessingQueue {
     private final LinkedBlockingQueue<QueuedEmail> queue = new LinkedBlockingQueue<>();
     private final FilterChainDispatcher dispatcher;
     private final int consumerThreadCount;
+    private final long shutdownTimeoutMs;
     private final List<Thread> consumerThreads = new ArrayList<>();
     private volatile boolean running;
 
     public EmailProcessingQueue(ProcessingProperties properties, FilterChainDispatcher dispatcher) {
         this.consumerThreadCount = properties.consumerThreads();
+        this.shutdownTimeoutMs = properties.shutdownTimeoutMs();
         this.dispatcher = dispatcher;
     }
 
@@ -77,7 +79,7 @@ public class EmailProcessingQueue {
         }
         for (Thread thread : consumerThreads) {
             try {
-                thread.join(5000);
+                thread.join(shutdownTimeoutMs);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("Interrupted while waiting for consumer thread '{}' to finish", thread.getName());

@@ -3,9 +3,9 @@ package ca.aksentiev.emailfilter.email.imap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
+import ca.aksentiev.emailfilter.config.ImapProperties;
 import ca.aksentiev.emailfilter.email.EmailProcessingQueue;
 import ca.aksentiev.emailfilter.email.QueuedEmail;
 import ca.aksentiev.emailfilter.email.parser.EmailParsingService;
@@ -43,13 +43,8 @@ public class ImapIdleMonitor {
 
     private static final Logger log = LoggerFactory.getLogger(ImapIdleMonitor.class);
 
-    /** Re-issue IDLE every 28 minutes (RFC 2177 recommends before 29 min). */
-    private static final long IDLE_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(28);
-
-    private static final long INITIAL_BACKOFF_MILLIS = 1000;
-    private static final long MAX_BACKOFF_MILLIS = TimeUnit.MINUTES.toMillis(5);
-
     private final AccountProperties accountProperties;
+    private final ImapProperties imapProperties;
     private final EmailParsingService parsingService;
     private final EmailProcessingQueue processingQueue;
     private final List<Thread> idleThreads = new ArrayList<>();
@@ -57,9 +52,11 @@ public class ImapIdleMonitor {
 
     public ImapIdleMonitor(
             AccountProperties accountProperties,
+            ImapProperties imapProperties,
             EmailParsingService parsingService,
             EmailProcessingQueue processingQueue) {
         this.accountProperties = accountProperties;
+        this.imapProperties = imapProperties;
         this.parsingService = parsingService;
         this.processingQueue = processingQueue;
     }
@@ -91,7 +88,7 @@ public class ImapIdleMonitor {
         }
         for (Thread thread : idleThreads) {
             try {
-                thread.join(5000);
+                thread.join(imapProperties.getShutdownTimeout());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warn("Interrupted while waiting for IDLE thread '{}' to finish", thread.getName());
@@ -101,7 +98,7 @@ public class ImapIdleMonitor {
     }
 
     private void monitorAccount(AccountProperties.Account account) {
-        long backoff = INITIAL_BACKOFF_MILLIS;
+        long backoff = imapProperties.getInitialBackoff();
 
         while (running) {
             Store store = null;
@@ -109,7 +106,7 @@ public class ImapIdleMonitor {
             try {
                 store = connect(account);
                 folder = openInbox(store, account);
-                backoff = INITIAL_BACKOFF_MILLIS;
+                backoff = imapProperties.getInitialBackoff();
 
                 log.info("Connected to IMAP for account '{}', entering IDLE loop", account.getName());
                 idleLoop(folder, account);
@@ -134,7 +131,7 @@ public class ImapIdleMonitor {
                 Thread.currentThread().interrupt();
                 break;
             }
-            backoff = Math.min(backoff * 2, MAX_BACKOFF_MILLIS);
+            backoff = Math.min(backoff * 2, imapProperties.getMaxBackoff());
         }
 
         log.debug("IDLE thread for account '{}' exiting", account.getName());
@@ -144,9 +141,9 @@ public class ImapIdleMonitor {
         Properties props = new Properties();
         props.setProperty("mail.store.protocol", "imaps");
         props.setProperty("mail.imaps.host", account.getHost());
-        props.setProperty("mail.imaps.port", "993");
-        props.setProperty("mail.imaps.timeout", "30000");
-        props.setProperty("mail.imaps.connectiontimeout", "15000");
+        props.setProperty("mail.imaps.port", String.valueOf(imapProperties.getPort()));
+        props.setProperty("mail.imaps.timeout", String.valueOf(imapProperties.getSocketTimeout()));
+        props.setProperty("mail.imaps.connectiontimeout", String.valueOf(imapProperties.getConnectionTimeout()));
         // Enable IDLE support
         props.setProperty("mail.imaps.usesocketchannels", "true");
 
@@ -186,7 +183,7 @@ public class ImapIdleMonitor {
             // Schedule a thread to break IDLE before the 29-minute RFC timeout
             Thread keepAlive = new Thread(() -> {
                 try {
-                    Thread.sleep(IDLE_TIMEOUT_MILLIS);
+                    Thread.sleep(imapProperties.getIdleInterval());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;

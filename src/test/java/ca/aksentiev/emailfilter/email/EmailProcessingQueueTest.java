@@ -45,7 +45,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "All filters passed");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher);
         queue.start();
 
         queue.enqueue(queuedEmail("Test Subject"));
@@ -64,7 +64,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "All filters passed");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(3), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(3, 5000), dispatcher);
         queue.start();
 
         for (int i = 0; i < emailCount; i++) {
@@ -78,7 +78,7 @@ class EmailProcessingQueueTest {
     void queueSizeReflectsEnqueuedItems() {
         FilterChainDispatcher dispatcher = mock(FilterChainDispatcher.class);
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher);
         // Don't start consumers — just test the queue size
         assertThat(queue.size()).isZero();
 
@@ -101,7 +101,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher);
         queue.start();
 
         queue.enqueue(queuedEmail("Will fail"));
@@ -121,7 +121,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(2), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(2, 5000), dispatcher);
         queue.start();
 
         queue.enqueue(queuedEmail("Trigger start"));
@@ -143,7 +143,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1), dispatcher);
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher);
         queue.start();
 
         AccountProperties.Account account = testAccount("work-account");

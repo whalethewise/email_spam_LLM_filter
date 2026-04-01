@@ -79,10 +79,26 @@ emailfilter:
   filter-engine:
     filters: []
 
+  # --- IMAP connection settings ---
+  # Applies to all IMAP IDLE connections. Timeouts in milliseconds.
+  imap:
+    port: 993
+    socket-timeout: 30000
+    connection-timeout: 15000
+    # Re-issue IDLE before the 29-minute RFC 2177 timeout (28 min = 1680000 ms)
+    idle-interval: 1680000
+    # Exponential backoff on connection failure
+    initial-backoff: 1000
+    max-backoff: 300000
+    # Time to wait for IDLE threads during graceful shutdown
+    shutdown-timeout: 5000
+
   # --- Processing queue ---
   # Consumer threads pull from a shared queue and dispatch through the filter chain.
   processing:
     consumer-threads: 1
+    # Time to wait for consumer threads during graceful shutdown (ms)
+    shutdown-timeout-ms: 5000
 
   # --- Dry-run mode (Phase 0) ---
   # Runs the full pipeline but records decisions instead of executing actions.
