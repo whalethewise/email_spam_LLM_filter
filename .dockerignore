@@ -1,19 +1,29 @@
-# Build outputs (rebuilt inside the container)
-build/
-.gradle/
-out/
+# ---------------------------------------------------------------------------
+# Shared .dockerignore for both Dockerfile and Dockerfile.runtime
+# ---------------------------------------------------------------------------
+#
+# Dockerfile (multi-stage) needs: gradlew, gradle/, build.gradle.kts,
+#   settings.gradle.kts, src/
+# Dockerfile.runtime needs: build/libs/*.jar
+#
+# Everything else is excluded from the build context.
+# ---------------------------------------------------------------------------
 
-# IDE files
+# Gradle caches (the wrapper JAR in gradle/ is kept)
+.gradle/
+
+# IDE
 .idea/
 *.iws
 *.iml
 *.ipr
+out/
 
 # Git
 .git/
 .gitignore
 
-# Docker runtime config and data (volume-mounted, not baked into image)
+# Runtime config and data (volume-mounted, not baked into the image)
 config/application.yml
 data/
 .env
@@ -25,3 +35,10 @@ LICENSE
 
 # CI/CD
 .github/
+
+# Build outputs that aren't the final JAR
+build/classes/
+build/generated/
+build/reports/
+build/test-results/
+build/tmp/

@@ -12,7 +12,10 @@ services:
   email-processor:
     build:
       context: .
+      # Multi-stage build from source (cloned repo on server):
       dockerfile: Dockerfile
+      # Runtime-only image (pre-built JAR from ./gradlew bootJar):
+      # dockerfile: Dockerfile.runtime
     container_name: email-processor
     restart: unless-stopped
     depends_on:

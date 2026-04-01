@@ -1,26 +1,31 @@
 # ---------------------------------------------------------------------------
-# Stage 1 — Build the Spring Boot fat JAR
+# Multi-stage build — compiles from source, no pre-built JAR required.
+# Use this when building from the repo on the server.
+#
+#   docker compose up -d --build
+#
+# To deploy a pre-built JAR instead, see Dockerfile.runtime.
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:21-jdk-alpine AS build
+
+# --- Stage 1: Build ---
+FROM amazoncorretto:21-alpine AS build
+
+RUN apk add --no-cache bash
 
 WORKDIR /workspace
 
-# Copy Gradle wrapper and build files first for layer caching.
-# These change rarely, so Docker can reuse the cached dependency layer.
+# Copy Gradle wrapper and build files first for dependency layer caching.
+# These change rarely — Docker reuses this layer until build files change.
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle/ gradle/
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
-# Download dependencies (cached unless build files change)
-RUN ./gradlew dependencies --no-daemon
-
-# Copy source and build
+# Copy source and build the fat JAR (tests run in CI, not here)
 COPY src/ src/
 RUN ./gradlew bootJar --no-daemon -x test
 
-# ---------------------------------------------------------------------------
-# Stage 2 — Runtime image (no JDK, no source, no Gradle)
-# ---------------------------------------------------------------------------
-FROM eclipse-temurin:21-jre-alpine
+# --- Stage 2: Runtime ---
+FROM amazoncorretto:21-alpine
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
@@ -28,7 +33,6 @@ WORKDIR /app
 
 COPY --from=build /workspace/build/libs/*.jar app.jar
 
-# Create directories for volume-mounted config and report output
 RUN mkdir -p /app/config /var/log/email-filter \
     && chown -R appuser:appgroup /app /var/log/email-filter
 
@@ -36,6 +40,4 @@ USER appuser
 
 EXPOSE 8080 8081
 
-# External config is volume-mounted into /app/config/.
-# spring.config.additional-location lets it override the bundled application.yaml.
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.additional-location=optional:file:/app/config/"]

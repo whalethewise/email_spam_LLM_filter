@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# Runtime-only image — copies a pre-built JAR from build/libs/.
+# Use this when deploying a JAR built locally on a dev machine.
+#
+#   ./gradlew bootJar
+#   docker compose build                             # uses Dockerfile by default
+#   # — or —
+#   DOCKER_BUILDKIT=1 docker build -f Dockerfile.runtime -t email-processor .
+#
+# To switch docker-compose.yml to this file, change the dockerfile line:
+#   dockerfile: Dockerfile.runtime
+# ---------------------------------------------------------------------------
+
+FROM amazoncorretto:21-alpine
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+COPY build/libs/*.jar app.jar
+
+RUN mkdir -p /app/config /var/log/email-filter \
+    && chown -R appuser:appgroup /app /var/log/email-filter
+
+USER appuser
+
+EXPOSE 8080 8081
+
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.additional-location=optional:file:/app/config/"]
