@@ -79,6 +79,11 @@ emailfilter:
   filter-engine:
     filters: []
 
+  # --- Processing queue ---
+  # Consumer threads pull from a shared queue and dispatch through the filter chain.
+  processing:
+    consumer-threads: 1
+
   # --- Dry-run mode (Phase 0) ---
   # Runs the full pipeline but records decisions instead of executing actions.
   # Perfect for tuning weights and thresholds before going live.
