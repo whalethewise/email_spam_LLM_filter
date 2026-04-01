@@ -55,10 +55,10 @@ class ImapIdleMonitorTest {
     @Test
     void startCreatesThreadPerAccount() throws Exception {
         AccountProperties.Account account1 = new AccountProperties.Account(
-                "personal", "imap.invalid", "user1@example.com", "pass1",
+                "unit-acct-a", "imap.invalid", "user1@example.com", "pass1",
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
         AccountProperties.Account account2 = new AccountProperties.Account(
-                "work", "imap.invalid", "user2@example.com", "pass2",
+                "unit-acct-b", "imap.invalid", "user2@example.com", "pass2",
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
 
         AccountProperties props = new AccountProperties(List.of(account1, account2));
@@ -69,10 +69,10 @@ class ImapIdleMonitorTest {
         // Give threads a moment to start (they'll fail to connect and enter backoff)
         Thread.sleep(200);
 
-        // Verify threads were created by checking for the exact thread names this test owns
+        // Use unique names to avoid collisions with the Spring context test's threads
         long idleThreadCount = Thread.getAllStackTraces().keySet().stream()
-                .filter(t -> t.getName().equals("imap-idle-personal")
-                        || t.getName().equals("imap-idle-work"))
+                .filter(t -> t.getName().equals("imap-idle-unit-acct-a")
+                        || t.getName().equals("imap-idle-unit-acct-b"))
                 .count();
 
         try {

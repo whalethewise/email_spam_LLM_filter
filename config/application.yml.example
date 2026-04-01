@@ -1,0 +1,149 @@
+# ---------------------------------------------------------------------------
+# AI Email Processing Platform — Application Configuration
+# ---------------------------------------------------------------------------
+# Copy this file to application.yml and edit for your environment.
+# Secrets (passwords, API keys) use ${ENV_VAR} placeholders resolved from .env.
+# ---------------------------------------------------------------------------
+
+spring:
+  application:
+    name: AIEmailProcessingPlatform
+
+  # --- Spring AI / Ollama (Layer 3 — LLM semantic analysis) ---
+  # Ollama must already be running at this URL. It is NOT started by Docker
+  # Compose. If Ollama is unreachable the system degrades gracefully —
+  # SpamAssassin and pre-processor layers keep scoring, and the LLM weight
+  # is redistributed across the remaining layers.
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: mistral
+          temperature: 0.7
+
+# ---------------------------------------------------------------------------
+# Email Filter Configuration
+# ---------------------------------------------------------------------------
+emailfilter:
+
+  # --- IMAP accounts to monitor ---
+  # One IMAP IDLE connection per account. Add as many accounts as you need.
+  # Passwords come from environment variables — never hardcode secrets.
+  accounts:
+    - name: personal
+      host: imap.example.com
+      username: user@example.com
+      password: ${IMAP_PASSWORD_PERSONAL}
+      folders:
+        inbox: INBOX
+        # Folder for emails the spam filter flags for human review (score 4-6)
+        review: LLM-Spam-Review
+        # Folder for confirmed spam (score 7-10)
+        junk: Junk
+      # Filters to run, in order. First non-"leave" action wins and stops the chain.
+      filters:
+        - spam-filter
+
+  # --- IMAP connection settings ---
+  # Applies to all IMAP IDLE connections. All timeouts in milliseconds.
+  imap:
+    port: 993
+    # Read timeout for IMAP operations
+    socket-timeout: 30000
+    # TCP connection timeout
+    connection-timeout: 15000
+    # Re-issue IDLE before the 29-minute RFC 2177 server timeout (28 min)
+    idle-interval: 1680000
+    # Exponential backoff on connection failure: starts at initial-backoff,
+    # doubles each retry, capped at max-backoff.
+    initial-backoff: 1000
+    max-backoff: 300000
+    # Time to wait for IDLE threads during graceful shutdown
+    shutdown-timeout: 5000
+
+  # --- SpamAssassin daemon (Layer 2 — header/Bayesian analysis) ---
+  # In Docker Compose the hostname is the service name "spamassassin".
+  spamassassin:
+    host: spamassassin
+    port: 783
+    # Connection and read timeout in milliseconds
+    timeout: 5000
+
+  # --- Spam filter (gate — always runs first) ---
+  spam-filter:
+    enabled: true
+    # Ollama model used for Layer 3 semantic analysis
+    ollama-model: mistral
+    # If raw SpamAssassin score exceeds this, skip the LLM call (obvious spam)
+    skip-llm-above-score: 8.0
+    # Paths to pre-processor data files (Docker volumes mount these into /app/config/)
+    brands-path: /app/config/brands.json
+    char-substitutions-path: /app/config/char_substitutions.json
+    # Scoring layer weights — must sum to 1.0.
+    # If a layer is unavailable its weight is redistributed to the remaining layers.
+    weights:
+      preprocessor: 0.20
+      spamassassin: 0.35
+      llm: 0.45
+    # Score thresholds (scale 1-10):
+    #   1 to safe-max   = safe (left in inbox)
+    #   safe-max+1 to review-max = review (moved to review folder, subject tagged)
+    #   review-max+1 to 10       = spam   (moved to junk folder, subject tagged)
+    thresholds:
+      safe-max: 3
+      review-max: 6
+    # IMAP action per spam tier
+    actions:
+      safe: none
+      review: move-to-review
+      spam: move-to-junk
+    # Whitelisted senders skip the spam filter entirely.
+    # Other filters in the chain still run.
+    whitelist:
+      # Exact email addresses
+      addresses: []
+      # Exact domains
+      domains: []
+      # Wildcard patterns — * matches any characters (e.g. "*@*.gov.ca")
+      patterns: []
+
+  # --- Filter engine ---
+  # YAML-defined filter chain loaded from this section (or a separate filters.yml).
+  # Filters are pure definitions — no code changes needed to add a new filter.
+  filter-engine:
+    filters: []
+
+  # --- Processing queue ---
+  # Consumer threads dequeue from the shared queue and dispatch through the filter chain.
+  processing:
+    # Number of consumer threads (default 1 — increase only if LLM latency is high
+    # and you want to overlap processing across accounts)
+    consumer-threads: 1
+    # Time to wait for consumer threads during graceful shutdown (ms)
+    shutdown-timeout-ms: 5000
+
+  # --- Dry-run mode (Phase 0) — RECOMMENDED STARTING MODE ---
+  # When enabled, the system runs the full scoring pipeline but only logs and
+  # tags email subjects. It will NOT move or delete any emails.
+  # Use this to tune scoring weights and thresholds before going live.
+  # Set enabled to false once you are confident in the scoring accuracy.
+  dry-run:
+    enabled: true
+    # Email address to send the digest report to (leave empty to skip)
+    report-send-to: admin@example.com
+    # File path to save the report (null to skip file output)
+    report-save-to: /var/log/email-filter/dry-run-report.txt
+    # Cron expression for scheduled report generation (default: daily at 7am)
+    schedule: "0 7 * * *"
+
+  # --- Management / reload API ---
+  # Runs on a separate port, internal network only.
+  # Endpoints:
+  #   POST /api/reload/filters  — re-reads filter chain definitions
+  #   POST /api/reload/brands   — re-reads brands.json
+  #   POST /api/reload/all      — reloads everything
+  # All endpoints require the X-Api-Key header.
+  reload:
+    port: 8081
+    api-key: ${RELOAD_API_KEY}

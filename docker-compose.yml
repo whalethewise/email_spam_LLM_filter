@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# AI Email Processing Platform — Docker Compose
+# ---------------------------------------------------------------------------
+# Ollama is NOT managed here. It must already be running on your network.
+# Point spring.ai.ollama.base-url in application.yml to its address.
+# The system degrades gracefully if Ollama is unavailable — SpamAssassin and
+# pre-processor layers continue scoring; LLM weight is redistributed.
+# ---------------------------------------------------------------------------
+
+services:
+
+  email-processor:
+    build: .
+    container_name: email-processor
+    restart: unless-stopped
+    depends_on:
+      spamassassin:
+        condition: service_started
+    env_file:
+      - .env
+    ports:
+      # Main application port
+      - "8080:8080"
+      # Management / reload API (restrict to internal network in production)
+      - "8081:8081"
+    volumes:
+      # External configuration — edit these without rebuilding the image.
+      # Paths inside the container match what application.yml expects.
+      - ./config/application.yml:/app/config/application.yml:ro
+      - ./config/brands.json:/app/config/brands.json:ro
+      - ./config/char_substitutions.json:/app/config/char_substitutions.json:ro
+      # Dry-run report output directory
+      - ./data/reports:/var/log/email-filter
+    networks:
+      - email-filter
+
+  spamassassin:
+    image: instantlinux/spamassassin:latest
+    container_name: spamassassin
+    restart: unless-stopped
+    # Port 783 is exposed only on the internal network — not published to host.
+    expose:
+      - "783"
+    networks:
+      - email-filter
+
+networks:
+  email-filter:
+    driver: bridge

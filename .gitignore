@@ -18,8 +18,11 @@ out/
 !**/src/test/**/out/
 
 .env                    # secrets — never commit this
-*.env                   # any env files
 application-local.yml   # any local overrides
+
+# Docker runtime config and data (examples are tracked, real files are not)
+config/application.yml
+data/
 
 *.class
 
