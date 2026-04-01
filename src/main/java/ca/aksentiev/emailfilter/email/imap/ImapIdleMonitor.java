@@ -2,7 +2,6 @@ package ca.aksentiev.emailfilter.email.imap;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
 import ca.aksentiev.emailfilter.config.ImapProperties;
@@ -14,7 +13,6 @@ import jakarta.annotation.PreDestroy;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
-import jakarta.mail.Session;
 import jakarta.mail.Store;
 import jakarta.mail.event.MessageCountAdapter;
 import jakarta.mail.event.MessageCountEvent;
@@ -45,6 +43,7 @@ public class ImapIdleMonitor {
 
     private final AccountProperties accountProperties;
     private final ImapProperties imapProperties;
+    private final ImapConnectionFactory connectionFactory;
     private final EmailParsingService parsingService;
     private final EmailProcessingQueue processingQueue;
     private final List<Thread> idleThreads = new ArrayList<>();
@@ -53,10 +52,12 @@ public class ImapIdleMonitor {
     public ImapIdleMonitor(
             AccountProperties accountProperties,
             ImapProperties imapProperties,
+            ImapConnectionFactory connectionFactory,
             EmailParsingService parsingService,
             EmailProcessingQueue processingQueue) {
         this.accountProperties = accountProperties;
         this.imapProperties = imapProperties;
+        this.connectionFactory = connectionFactory;
         this.parsingService = parsingService;
         this.processingQueue = processingQueue;
     }
@@ -138,19 +139,7 @@ public class ImapIdleMonitor {
     }
 
     private Store connect(AccountProperties.Account account) throws MessagingException {
-        Properties props = new Properties();
-        props.setProperty("mail.store.protocol", "imaps");
-        props.setProperty("mail.imaps.host", account.getHost());
-        props.setProperty("mail.imaps.port", String.valueOf(imapProperties.getPort()));
-        props.setProperty("mail.imaps.timeout", String.valueOf(imapProperties.getSocketTimeout()));
-        props.setProperty("mail.imaps.connectiontimeout", String.valueOf(imapProperties.getConnectionTimeout()));
-        // Enable IDLE support
-        props.setProperty("mail.imaps.usesocketchannels", "true");
-
-        Session session = Session.getInstance(props);
-        Store store = session.getStore("imaps");
-        store.connect(account.getHost(), account.getUsername(), account.getPassword());
-        return store;
+        return connectionFactory.connect(account);
     }
 
     private IMAPFolder openInbox(Store store, AccountProperties.Account account) throws MessagingException {

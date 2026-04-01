@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class ImapIdleMonitorTest {
 
     private final ImapProperties imapProperties = new ImapProperties();
+    private final ImapConnectionFactory connectionFactory = new ImapConnectionFactory(imapProperties);
 
     @Mock
     private EmailParsingService parsingService;
@@ -27,7 +28,7 @@ class ImapIdleMonitorTest {
     @Test
     void startWithNoAccountsDoesNotThrow() {
         AccountProperties props = new AccountProperties(List.of());
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         assertThatCode(monitor::start).doesNotThrowAnyException();
 
@@ -37,7 +38,7 @@ class ImapIdleMonitorTest {
     @Test
     void startWithNullAccountsDoesNotThrow() {
         AccountProperties props = new AccountProperties(null);
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         assertThatCode(monitor::start).doesNotThrowAnyException();
 
@@ -47,7 +48,7 @@ class ImapIdleMonitorTest {
     @Test
     void shutdownBeforeStartDoesNotThrow() {
         AccountProperties props = new AccountProperties(List.of());
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         assertThatCode(monitor::shutdown).doesNotThrowAnyException();
     }
@@ -62,7 +63,7 @@ class ImapIdleMonitorTest {
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
 
         AccountProperties props = new AccountProperties(List.of(account1, account2));
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         monitor.start();
 
@@ -90,7 +91,7 @@ class ImapIdleMonitorTest {
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
 
         AccountProperties props = new AccountProperties(List.of(account));
-        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, parsingService, processingQueue);
+        ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         monitor.start();
         Thread.sleep(200);

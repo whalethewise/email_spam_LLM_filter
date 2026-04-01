@@ -73,13 +73,17 @@ Not designed yet — do not conflate with Tier 1/2.
 ca.aksentiev.emailfilter
 │
 ├── email              # EmailProcessingQueue, QueuedEmail record
-│   ├── imap          # ImapIdleMonitor, connection management, graceful shutdown
+│   ├── imap          # ImapIdleMonitor, ImapConnectionFactory, connection management
 │   └── parser        # EmailParsingService, MIME multipart parsing
 │
 ├── filter
 │   ├── api           # Filter interface, FilterResult record, FilterAction enum
 │   │                 # ConditionEvaluator, FilterEngine (loads + executes chain)
 │   └── spam          # SpamFilter (special — three-layer pipeline, always gate)
+│
+├── scan              # ScanService, ScanResult record (on-demand mailbox scan)
+│
+├── api               # ManagementController, ApiKeyFilter (reload + scan endpoints)
 │
 ├── preprocessor      # PreProcessorService, PreProcessorFindings record
 │
@@ -118,21 +122,22 @@ ca.aksentiev.emailfilter
 
 ## Configuration Files (all mounted as volumes, outside container)
 
-| File                      | Purpose                                 | Reload API               |
-|---------------------------|-----------------------------------------|--------------------------|
-| `application.yml`         | Accounts, Ollama, SA connections, ports | Restart                  |
-| `filters.yml`             | Filter chain definitions                | POST /api/reload/filters |
-| `brands.json`             | Known brands + legitimate domains       | POST /api/reload/brands  |
-| `char_substitutions.json` | Character normalization maps            | POST /api/reload/filters |
-| `.env`                    | Secrets (passwords, API key)            | Restart                  |
+| File                      | Purpose                                 | Reload API      |
+|---------------------------|-----------------------------------------|-----------------|
+| `application.yml`         | Accounts, Ollama, SA connections, ports | Restart         |
+| `filters.yml`             | Filter chain definitions                | POST /api/reload |
+| `brands.json`             | Known brands + legitimate domains       | POST /api/reload |
+| `char_substitutions.json` | Character normalization maps            | POST /api/reload |
+| `.env`                    | Secrets (passwords, API key)            | Restart         |
 
-### Reload API (management port 8081, internal only, API key protected)
+### Management API (management port 8081, internal only, API key protected)
 
 ```
-POST /api/reload/filters    # re-reads filters.yml + char_substitutions.json
-POST /api/reload/brands     # re-reads brands.json
-POST /api/reload/all        # reloads everything
+POST /api/reload    # re-reads filters.yml, brands.json, char_substitutions.json
+POST /api/scan      # scans existing IMAP messages (always dry-run)
 ```
+
+All endpoints require `X-Api-Key` header matching `${RELOAD_API_KEY}`.
 
 ### Secret Handling
 
@@ -385,3 +390,59 @@ report of what actions it would have taken.
 - **Synchronous IDLE, not async**: Jakarta Mail IDLE is inherently blocking; one thread per account is the simplest correct approach
 - **Parse before enqueue**: avoids holding raw `Message` references (tied to IMAP connection) across thread boundaries
 - **Consumer threads separate from IDLE threads**: decouples I/O (IMAP) from processing (filter chain), allows independent scaling
+
+## Scan Architecture (Decided)
+
+### ScanService
+
+- Triggered on demand via `POST /api/scan` (management API, API key required)
+- Opens its own IMAP connections via `ImapConnectionFactory` (shared with `ImapIdleMonitor`)
+- Reads existing messages newest-first from IMAP folders
+- Parses via `EmailParsingService`, enqueues to `EmailProcessingQueue` with `forceDryRun=true`
+- Respects `ScanProperties`: `inbox-only` (default true), `limit` (default 0 = no limit)
+- One scan at a time — concurrent requests return HTTP 409
+- Folders opened as `READ_ONLY` — scan never modifies the mailbox
+
+### Dry-Run Guarantee
+
+- Scan always forces dry-run regardless of global `dry-run.enabled` setting
+- Enforced via `QueuedEmail.forceDryRun` flag — set to `true` for all scan-enqueued items
+- `QueuedEmail(message, account)` convenience constructor defaults `forceDryRun=false` (normal IDLE path)
+- When action execution is wired in, consumer must check `forceDryRun` and skip destructive actions
+
+### ImapConnectionFactory
+
+- Extracted from `ImapIdleMonitor.connect()` into shared `@Component`
+- Configures IMAPS session from `ImapProperties` (port, socket-timeout, connection-timeout)
+- Used by both `ImapIdleMonitor` (real-time) and `ScanService` (on-demand)
+- Caller owns the returned `Store` and is responsible for closing it
+
+### Design Decisions
+
+- **Scan reuses the processing queue**: emails flow through the same `FilterChainDispatcher` path as live emails, ensuring identical scoring behavior
+- **forceDryRun on QueuedEmail, not a global toggle**: avoids race conditions where a scan could accidentally disable dry-run for live emails arriving concurrently
+- **READ_ONLY folder access**: defense in depth — even if downstream code tried to execute actions, the IMAP connection doesn't have write permission
+- **Newest first**: most useful for testing — recent emails are more representative of current traffic patterns
+- **No separate scan queue**: one shared queue means scan emails are interleaved with live traffic, processed by the same consumer threads — simpler, and scan volume is bounded by the limit setting
+
+## Management API (Decided)
+
+### Endpoints
+
+| Method | Path          | Purpose                                    |
+|--------|---------------|--------------------------------------------|
+| POST   | `/api/reload` | Reload config files (filters, brands, etc.) |
+| POST   | `/api/scan`   | Initiate on-demand mailbox scan            |
+
+### Authentication
+
+- All `/api/**` requests require `X-Api-Key` header
+- Key configured via `emailfilter.reload.api-key` (injected from `${RELOAD_API_KEY}` env var)
+- `ApiKeyFilter` (extends `OncePerRequestFilter`) validates before reaching controller
+- Missing or invalid key returns HTTP 401
+
+### Design Decisions
+
+- **Servlet filter, not Spring Security**: no need for full security framework — single API key on internal-only management port
+- **Flat `/api/reload` instead of `/api/reload/filters`, `/api/reload/brands`**: single reload endpoint refreshes everything; granular endpoints can be added later if needed
+- **Scan returns immediately with enqueue count**: actual processing happens asynchronously via the queue — the API response confirms how many emails were enqueued, not their filter results

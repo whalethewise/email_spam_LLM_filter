@@ -123,6 +123,18 @@ emailfilter:
     # Time to wait for consumer threads during graceful shutdown (ms)
     shutdown-timeout-ms: 5000
 
+  # --- On-demand scan (POST /api/scan) ---
+  # Scans existing messages in IMAP folders and runs them through the filter chain.
+  # Always forces dry-run mode — a scan will NEVER move or delete emails.
+  # Useful for testing filters against your existing mailbox before going live.
+  scan:
+    # Whether the scan endpoint is active
+    enabled: true
+    # true = scan inbox only; false = scan all folders in the account
+    inbox-only: true
+    # Maximum messages to scan per folder (newest first). 0 = no limit.
+    limit: 0
+
   # --- Dry-run mode (Phase 0) — RECOMMENDED STARTING MODE ---
   # When enabled, the system runs the full scoring pipeline but only logs and
   # tags email subjects. It will NOT move or delete any emails.

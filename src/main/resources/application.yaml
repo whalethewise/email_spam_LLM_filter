@@ -100,6 +100,13 @@ emailfilter:
     # Time to wait for consumer threads during graceful shutdown (ms)
     shutdown-timeout-ms: 5000
 
+  # --- Scan (on-demand, always dry-run) ---
+  # Scans existing messages in IMAP folders via POST /api/scan.
+  scan:
+    enabled: true
+    inbox-only: true
+    limit: 0
+
   # --- Dry-run mode (Phase 0) ---
   # Runs the full pipeline but records decisions instead of executing actions.
   # Perfect for tuning weights and thresholds before going live.

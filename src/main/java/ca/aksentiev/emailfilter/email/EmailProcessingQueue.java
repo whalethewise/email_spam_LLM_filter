@@ -109,14 +109,15 @@ public class EmailProcessingQueue {
     private void processEmail(QueuedEmail item) {
         String subject = item.message().subject();
         String accountName = item.account().getName();
+        String mode = item.forceDryRun() ? "SCAN/DRY-RUN" : "LIVE";
         try {
-            log.debug("Processing email '{}' for account '{}'", subject, accountName);
+            log.debug("[{}] Processing email '{}' for account '{}'", mode, subject, accountName);
             FilterResult result = dispatcher.dispatch(item.message(), item.account());
-            log.info("Processed email '{}' for account '{}': action={} reason='{}'",
-                    subject, accountName, result.action(), result.reason());
+            log.info("[{}] Processed email '{}' for account '{}': action={} reason='{}'",
+                    mode, subject, accountName, result.action(), result.reason());
         } catch (Exception e) {
-            log.error("Failed to process email '{}' for account '{}': {}",
-                    subject, accountName, e.getMessage(), e);
+            log.error("[{}] Failed to process email '{}' for account '{}': {}",
+                    mode, subject, accountName, e.getMessage(), e);
         }
     }
 }
