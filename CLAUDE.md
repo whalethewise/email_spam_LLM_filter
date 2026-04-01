@@ -72,9 +72,9 @@ Not designed yet — do not conflate with Tier 1/2.
 ```
 ca.aksentiev.emailfilter
 │
-├── email
+├── email              # EmailProcessingQueue, QueuedEmail record
 │   ├── imap          # ImapIdleMonitor, connection management, graceful shutdown
-│   └── parser        # EmailParser, ParsedEmail record
+│   └── parser        # EmailParsingService, MIME multipart parsing
 │
 ├── filter
 │   ├── api           # Filter interface, FilterResult record, FilterAction enum
@@ -146,6 +146,12 @@ POST /api/reload/all        # reloads everything
 
 ```
 Email arrives via IMAP IDLE
+        │
+        ▼
+EmailParsingService (on IMAP thread)
+        │
+        ▼
+EmailProcessingQueue (shared, consumer threads)
         │
         ▼
 Spam Filter (always first — gate)
@@ -243,6 +249,8 @@ LLM-powered:
 | scorer.py       | ScoringService                   | scoring      |
 | actions.py      | EmailActionService               | action       |
 | imap_client.py  | ImapIdleMonitor                  | email.imap   |
+| —               | EmailParsingService              | email.parser |
+| —               | EmailProcessingQueue             | email        |
 | config.py       | @ConfigurationProperties classes | config       |
 | —               | FilterEngine                     | filter.api   |
 | —               | ConditionEvaluator               | filter.api   |
@@ -344,3 +352,36 @@ report of what actions it would have taken.
 - Whitelist/config is per-filter, not global
 - No parallelism in Phase 1 — sequential execution, LLM call dominates latency anyway
 - Each filter can define its own config structure in the shared YAML
+
+## IMAP & Queue Architecture (Decided)
+
+### ImapIdleMonitor
+
+- One daemon thread per configured account, started on `ApplicationReadyEvent`
+- Each thread runs a synchronous IMAP IDLE loop (blocking `folder.idle()`)
+- Re-issues IDLE every 28 minutes (RFC 2177 timeout is 29 min) via a keep-alive NOOP
+- Reconnects with exponential backoff (1s → 5min cap) on connection failure
+- On new message: parses via `EmailParsingService`, wraps in `QueuedEmail`, enqueues to shared queue
+- Graceful shutdown via `@PreDestroy` — interrupts threads, joins with 5s timeout
+
+### EmailProcessingQueue (Single Shared Queue)
+
+- One `LinkedBlockingQueue<QueuedEmail>` shared across all accounts
+- Configurable consumer thread count: `emailfilter.processing.consumer-threads` (default 1)
+- Consumer threads poll with 1s timeout, dispatch to `FilterChainDispatcher`
+- `QueuedEmail` record pairs `EmailMessage` with `AccountProperties.Account` (carries account context)
+- Started/stopped independently from IMAP threads (both listen to `ApplicationReadyEvent`)
+- Thread naming: `email-consumer-0`, `email-consumer-1`, etc.
+
+### EmailParsingService
+
+- Independent component — injected into `ImapIdleMonitor`, not coupled to queue or filters
+- Parses Jakarta `Message` into `EmailMessage` record (MIME multipart support)
+- Parsing happens on the IMAP thread, before enqueue — keeps queue items pre-parsed
+
+### Design Decisions
+
+- **Single queue, not per-account**: simplifies consumer logic, one pool handles all accounts, natural load balancing
+- **Synchronous IDLE, not async**: Jakarta Mail IDLE is inherently blocking; one thread per account is the simplest correct approach
+- **Parse before enqueue**: avoids holding raw `Message` references (tied to IMAP connection) across thread boundaries
+- **Consumer threads separate from IDLE threads**: decouples I/O (IMAP) from processing (filter chain), allows independent scaling
