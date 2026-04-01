@@ -301,3 +301,46 @@ report of what actions it would have taken.
 - Scheduled batch processing, digest emails, folder summaries
 - May use LLM server (192.168.10.158) with Qwen3 14B
 - Not designed yet
+
+## Filter Chain Architecture (Decided)
+
+### Common Contracts
+
+- `EmailFilter` interface: `getName()`, `process(EmailMessage)`, `isEnabled()`
+- `FilterResult` record: `Status` enum (PROCESSED, SKIPPED), `score`, `action`, `reason`, `Map<String, Object> metadata`
+- `EmailMessage` record: `messageId`, `from`, `fromName`, `to`, `subject`, `bodyText`, `bodyHtml`, `rawMessage`, `headers`
+
+### FilterChainDispatcher
+
+- Resolves filter names from account YAML config to `EmailFilter` beans by name
+- Executes filters in YAML-declared order
+- Chain behavior: first non-"leave" action wins and stops the chain; "leave" and SKIPPED continue to the next filter
+- If every filter passes, email stays in inbox untouched
+
+### SpamFilter (Three-Layer Pipeline)
+
+- Implements `EmailFilter`, lives in `filter.spam` package
+- Sequential execution: Pre-processor → SpamAssassin → LLM
+- Whitelist check runs first — if matched, returns SKIPPED (chain continues to next filter)
+- If raw SA score exceeds `skip-llm-above-score` threshold, LLM is skipped (obvious spam)
+- If any layer is unavailable, ScoringService recalculates weights from remaining layers (graceful degradation)
+- Final score mapped to action via configurable thresholds (safe-max, review-max)
+
+### Whitelist (Per-Filter, Inside filters YAML)
+
+- Lives inside each filter's config section, not a separate file
+- Three tiers: exact addresses, exact domains, wildcard patterns (`*@*.gov.ca`)
+- Wildcards use `*` syntax in YAML, converted to regex internally
+- Whitelisted emails skip that filter only — other filters in the chain still run
+
+### Blacklist
+
+- No special blacklist mechanism — just another filter in the chain (e.g., `blocklist-filter` with action `"delete"`, slotted before spam-filter)
+- The filter chain architecture handles it naturally
+
+### Design Principles
+
+- Filters are independent — each filter decides for itself, dispatcher just orchestrates
+- Whitelist/config is per-filter, not global
+- No parallelism in Phase 1 — sequential execution, LLM call dominates latency anyway
+- Each filter can define its own config structure in the shared YAML
