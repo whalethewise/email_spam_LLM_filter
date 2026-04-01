@@ -70,6 +70,18 @@ emailfilter:
   filter-engine:
     filters: []
 
+  # --- Dry-run mode (Phase 0) ---
+  # Runs the full pipeline but records decisions instead of executing actions.
+  # Perfect for tuning weights and thresholds before going live.
+  dry-run:
+    enabled: true
+    # Email address to send the digest report to
+    report-send-to: admin@example.com
+    # File path to save the report (optional, null to skip)
+    report-save-to: /var/log/email-filter/dry-run-report.txt
+    # Cron expression for scheduled report generation (default: daily at 7am)
+    schedule: "0 7 * * *"
+
   # --- Management / reload API ---
   # Runs on a separate port, internal network only.
   # POST /api/reload/filters, /api/reload/brands, /api/reload/all

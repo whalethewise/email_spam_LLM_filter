@@ -265,6 +265,21 @@ LLM-powered:
 
 ---
 
+## Dry-Run Mode (Phase 0)
+
+Before Phase 1 (review mode), a dry-run mode lets the system run the
+full pipeline without touching any emails. Instead it generates a digest
+report of what actions it would have taken.
+
+- Controlled by `dry-run.enabled` in application.yml
+- When enabled, EmailActionService records decisions instead of executing them
+- DryRunReportService accumulates decisions across all processed emails
+- Report generated on schedule or on demand via API
+- Report sent as email attachment and/or saved to configured path
+- Perfect for tuning scoring weights and thresholds before going live
+
+---
+
 ## Future Stages (do not implement now)
 
 ### RAG Layer (Tier 1/2)
