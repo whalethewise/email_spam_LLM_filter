@@ -36,6 +36,8 @@ emailfilter:
   spamassassin:
     host: 192.168.10.180
     port: 783
+    # Connection and read timeout in milliseconds
+    timeout: 5000
 
   # --- Spam filter (gate — always runs first) ---
   spam-filter:
