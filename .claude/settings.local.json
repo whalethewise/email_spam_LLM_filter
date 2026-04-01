@@ -7,7 +7,9 @@
       "Bash(./gradlew tasks:*)",
       "Bash(git stash:*)",
       "Bash(./gradlew clean:*)",
-      "Bash(./gradlew dependencies:*)"
+      "Bash(./gradlew dependencies:*)",
+      "Bash(find /Users/whalethewise/Work/Source/AIEmailProcessingPlatform/build/test-results/test -name \"*.xml\" -exec grep -h 'testsuite' {} \\\\; | head -20)",
+      "Bash(find /Users/whalethewise/Work/Source/AIEmailProcessingPlatform/build/test-results/test -name \"*.xml\" -exec grep -h 'testsuite ' {} \\\\; | sed 's/.*tests=\"\\\\\\([0-9]*\\\\\\)\".*/\\\\1/' | paste -sd+ - | bc)"
     ]
   }
 }
