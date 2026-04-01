@@ -1,0 +1,157 @@
+# ---------------------------------------------------------------------------
+# AI Email Processing Platform — Filter Chain Definitions
+# ---------------------------------------------------------------------------
+# Copy this file to filters.yml and edit for your needs.
+#
+# Each filter is a pure YAML definition — no code changes needed to add one.
+# Filters run after the spam gate clears an email. The chain stops on the
+# first non-"leave" action (unless stop-on-match is false).
+#
+# Reload without restart:  POST /api/reload  (requires X-Api-Key header)
+# ---------------------------------------------------------------------------
+#
+# Condition types (simple — no LLM call):
+#   sender-contains    — sender address contains value
+#   sender-matches     — sender address matches regex
+#   subject-contains   — subject line contains value
+#   subject-matches    — subject line matches regex
+#   body-contains      — plain text body contains value
+#   header-equals      — named header equals value
+#
+# Condition types (LLM-powered):
+#   llm-prompt         — sends email content + prompt to Ollama,
+#                         compares response to 'expect' value
+#
+# Condition modifiers:
+#   not: true          — negates the condition result
+#
+# Nesting: two levels max (top-level group → nested groups → rules).
+#   Top-level group has an operator (AND/OR) and contains either:
+#     - groups: nested condition groups (each with its own operator + rules)
+#     - rules:  leaf-level condition rules
+#   Nested groups contain only rules — no deeper nesting.
+#
+# Actions:
+#   on-match    — what to do when conditions are met
+#                  "tag"   = prepend subject-tag to the subject line
+#                  "move"  = move to the folder specified by move-to
+#                  "flag"  = mark the email as flagged
+#                  "none"  = do nothing (email continues down the chain)
+#   on-no-match — what to do when conditions are NOT met (usually "none")
+#   move-to     — IMAP folder path for move actions (null if not moving)
+#
+# stop-on-match:
+#   false = non-stopping (tag, flag); chain continues to next filter
+#   true  = stopping (move, delete, archive); chain stops after this filter
+#   Non-stopping filters are auto-sorted to run before stopping filters.
+# ---------------------------------------------------------------------------
+
+emailfilter:
+  filter-engine:
+    filters:
+
+      # -----------------------------------------------------------------
+      # Example 1: Non-stopping filter with nested OR conditions
+      # -----------------------------------------------------------------
+      # Tags promotional flyers from known retailers. Does not stop the
+      # chain — other filters still run after this one.
+      - name: flyer-filter
+        enabled: true
+        description: "Catches promotional flyers and deal emails from known retailers"
+        stop-on-match: false
+        # {matched_item} is replaced with the LLM-extracted item (if any)
+        subject-tag: "[FLYER: {matched_item}]"
+        conditions:
+          # Top-level AND: all groups must match
+          operator: AND
+          groups:
+            # Nested OR: at least one sender must match
+            - operator: OR
+              rules:
+                - type: sender-contains
+                  value: "bestbuy.com"
+                - type: sender-contains
+                  value: "staples.com"
+                - type: sender-contains
+                  value: "amazon.com"
+          rules: []
+        actions:
+          on-match: tag
+          on-no-match: none
+          move-to: null
+
+      # -----------------------------------------------------------------
+      # Example 2: LLM-powered condition
+      # -----------------------------------------------------------------
+      # Uses Ollama to decide if a Steam email is about a game sale.
+      # Both the sender check AND the LLM check must pass (top-level AND).
+      - name: steam-sale-filter
+        enabled: true
+        description: "Detects Steam game sale notifications"
+        stop-on-match: false
+        subject-tag: "[STEAM: {matched_item}]"
+        conditions:
+          operator: AND
+          groups: []
+          rules:
+            - type: sender-contains
+              value: "steampowered.com"
+            - type: llm-prompt
+              # The prompt is sent to Ollama along with the email content.
+              # The response is compared to 'expect' (case-insensitive).
+              prompt: "Does this email announce a game sale or discount? YES or NO only."
+              expect: "YES"
+              value: null
+              not: false
+        actions:
+          on-match: tag
+          on-no-match: none
+          move-to: null
+
+      # -----------------------------------------------------------------
+      # Example 3: Negated condition
+      # -----------------------------------------------------------------
+      # Matches emails from a domain UNLESS the subject contains "invoice".
+      # Demonstrates the 'not' modifier on a condition rule.
+      - name: promo-not-invoice
+        enabled: false
+        description: "Tags promos from acme.com, skips invoices"
+        stop-on-match: false
+        subject-tag: "[PROMO]"
+        conditions:
+          operator: AND
+          groups: []
+          rules:
+            - type: sender-contains
+              value: "acme.com"
+            - type: subject-contains
+              value: "invoice"
+              not: true
+        actions:
+          on-match: tag
+          on-no-match: none
+          move-to: null
+
+      # -----------------------------------------------------------------
+      # Example 4: Stopping filter — move to a folder
+      # -----------------------------------------------------------------
+      # Moves matching emails to a folder and stops the chain.
+      # Stopping filters are auto-sorted to run after non-stopping ones.
+      - name: newsletter-archive
+        enabled: false
+        description: "Archives newsletters to a dedicated folder"
+        stop-on-match: true
+        subject-tag: null
+        conditions:
+          operator: AND
+          groups: []
+          rules:
+            - type: subject-contains
+              value: "newsletter"
+              not: false
+              prompt: null
+              expect: null
+        actions:
+          on-match: move
+          on-no-match: none
+          move-to: Archive/Newsletters

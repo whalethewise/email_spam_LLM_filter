@@ -15,7 +15,8 @@
       "Bash(ls /Users/whalethewise/Work/Source/AIEmailProcessingPlatform/pom.xml /Users/whalethewise/Work/Source/AIEmailProcessingPlatform/build.gradle*)",
       "Bash(xargs cat:*)",
       "Bash(find:*)",
-      "Bash(./gradlew compileJava compileTestJava)"
+      "Bash(./gradlew compileJava compileTestJava)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

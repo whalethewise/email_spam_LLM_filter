@@ -9,6 +9,15 @@ spring:
   application:
     name: AIEmailProcessingPlatform
 
+  # --- Import filter chain definitions from filters.yml ---
+  # The classpath copy (bundled in the JAR) is the fallback.
+  # The external Docker-mounted copy at /app/config/ overrides it.
+  # Both are optional — the app starts with an empty filter chain if neither exists.
+  config:
+    import:
+      - optional:classpath:filters.yml
+      - optional:file:/app/config/filters.yml
+
   # --- Spring AI / Ollama (Layer 3 — LLM semantic analysis) ---
   # Ollama must already be running at this URL. It is NOT started by Docker
   # Compose. If Ollama is unreachable the system degrades gracefully —
@@ -109,10 +118,10 @@ emailfilter:
       patterns: []
 
   # --- Filter engine ---
-  # YAML-defined filter chain loaded from this section (or a separate filters.yml).
-  # Filters are pure definitions — no code changes needed to add a new filter.
-  filter-engine:
-    filters: []
+  # Filter chain definitions are loaded from filters.yml (imported via
+  # spring.config.import above). Edit filters.yml to add, remove, or
+  # reorder filters — no code changes needed.
+  # See config/filters.yml.example for the full format and examples.
 
   # --- Processing queue ---
   # Consumer threads dequeue from the shared queue and dispatch through the filter chain.
@@ -149,12 +158,11 @@ emailfilter:
     # Cron expression for scheduled report generation (default: daily at 7am)
     schedule: "0 7 * * *"
 
-  # --- Management / reload API ---
-  # Runs on a separate port, internal network only.
+  # --- Management API ---
+  # Runs on the main server port, internal network only.
   # Endpoints:
-  #   POST /api/reload/filters  — re-reads filter chain definitions
-  #   POST /api/reload/brands   — re-reads brands.json
-  #   POST /api/reload/all      — reloads everything
+  #   POST /api/reload  — re-reads filters.yml, brands.json, char_substitutions.json
+  #   POST /api/scan    — scans existing IMAP messages (always dry-run)
   # All endpoints require the X-Api-Key header.
   reload:
     port: 8081

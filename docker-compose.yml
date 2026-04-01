@@ -32,6 +32,7 @@ services:
       # External configuration — edit these without rebuilding the image.
       # Paths inside the container match what application.yml expects.
       - ./config/application.yml:/app/config/application.yml:ro
+      - ./config/filters.yml:/app/config/filters.yml:ro
       - ./config/brands.json:/app/config/brands.json:ro
       - ./config/char_substitutions.json:/app/config/char_substitutions.json:ro
       # Dry-run report output directory

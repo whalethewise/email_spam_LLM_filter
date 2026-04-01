@@ -2,6 +2,14 @@ spring:
   application:
     name: AIEmailProcessingPlatform
 
+  # --- Import filter chain definitions ---
+  # Classpath copy is the fallback; external Docker-mounted copy overrides it.
+  # Both are optional — the app starts with an empty filter chain if neither exists.
+  config:
+    import:
+      - optional:classpath:filters.yml
+      - optional:file:/app/config/filters.yml
+
   # --- Spring AI / Ollama configuration ---
   ai:
     ollama:
@@ -74,10 +82,8 @@ emailfilter:
         - "*@*.gov.ca"
 
   # --- Filter engine ---
-  # Filters are loaded from this section (or a separate filters.yml).
-  # See src/main/resources/filters.yml for the filter chain definitions.
-  filter-engine:
-    filters: []
+  # Filter chain definitions are loaded from filters.yml via spring.config.import.
+  # Do not define emailfilter.filter-engine.filters here — it lives in filters.yml.
 
   # --- IMAP connection settings ---
   # Applies to all IMAP IDLE connections. Timeouts in milliseconds.
