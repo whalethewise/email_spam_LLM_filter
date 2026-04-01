@@ -1,0 +1,27 @@
+# Build outputs (rebuilt inside the container)
+build/
+.gradle/
+out/
+
+# IDE files
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Git
+.git/
+.gitignore
+
+# Docker runtime config and data (volume-mounted, not baked into image)
+config/application.yml
+data/
+.env
+*.env
+
+# Documentation
+*.md
+LICENSE
+
+# CI/CD
+.github/

@@ -10,7 +10,9 @@
 services:
 
   email-processor:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: email-processor
     restart: unless-stopped
     depends_on:
