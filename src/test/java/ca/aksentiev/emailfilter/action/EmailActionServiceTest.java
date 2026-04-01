@@ -49,7 +49,8 @@ class EmailActionServiceTest {
                 "classpath:char_substitutions.json",
                 new SpamFilterProperties.Weights(0.20, 0.35, 0.45),
                 new SpamFilterProperties.Thresholds(3, 6),
-                new SpamFilterProperties.Actions("none", "move-to-review", "move-to-junk"));
+                new SpamFilterProperties.Actions("none", "move-to-review", "move-to-junk"),
+                null);
     }
 
     @Test

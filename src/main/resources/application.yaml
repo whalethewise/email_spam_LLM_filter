@@ -63,6 +63,15 @@ emailfilter:
       safe: none
       review: move-to-review
       spam: move-to-junk
+    # Whitelist — whitelisted senders skip the spam filter entirely
+    whitelist:
+      addresses:
+        - ceo@mycompany.com
+      domains:
+        - mycompany.com
+        - trusted-partner.com
+      patterns:
+        - "*@*.gov.ca"
 
   # --- Filter engine ---
   # Filters are loaded from this section (or a separate filters.yml).
