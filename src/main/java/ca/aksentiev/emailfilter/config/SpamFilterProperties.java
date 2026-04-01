@@ -12,15 +12,20 @@ public class SpamFilterProperties {
     private boolean enabled;
     private String ollamaModel;
     private double skipLlmAboveScore;
+    private String brandsPath;
+    private String charSubstitutionsPath;
     private Weights weights;
     private Thresholds thresholds;
     private Actions actions;
 
     public SpamFilterProperties(boolean enabled, String ollamaModel, double skipLlmAboveScore,
+                                String brandsPath, String charSubstitutionsPath,
                                 Weights weights, Thresholds thresholds, Actions actions) {
         this.enabled = enabled;
         this.ollamaModel = ollamaModel;
         this.skipLlmAboveScore = skipLlmAboveScore;
+        this.brandsPath = brandsPath;
+        this.charSubstitutionsPath = charSubstitutionsPath;
         this.weights = weights;
         this.thresholds = thresholds;
         this.actions = actions;
@@ -36,6 +41,14 @@ public class SpamFilterProperties {
 
     public double getSkipLlmAboveScore() {
         return skipLlmAboveScore;
+    }
+
+    public String getBrandsPath() {
+        return brandsPath;
+    }
+
+    public String getCharSubstitutionsPath() {
+        return charSubstitutionsPath;
     }
 
     public Weights getWeights() {

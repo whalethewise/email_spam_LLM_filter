@@ -6,7 +6,8 @@
       "Bash(./gradlew formatJava 2>&1)",
       "Bash(./gradlew tasks:*)",
       "Bash(git stash:*)",
-      "Bash(./gradlew clean:*)"
+      "Bash(./gradlew clean:*)",
+      "Bash(./gradlew dependencies:*)"
     ]
   }
 }
