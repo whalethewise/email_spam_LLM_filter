@@ -87,8 +87,8 @@ emailfilter:
     # If raw SpamAssassin score exceeds this, skip the LLM call (obvious spam)
     skip-llm-above-score: 8.0
     # Paths to pre-processor data files (Docker volumes mount these into /app/config/)
-    brands-path: /app/config/brands.json
-    char-substitutions-path: /app/config/char_substitutions.json
+    brands-path: file:/app/config/brands.json
+    char-substitutions-path: file:/app/config/char_substitutions.json
     # Scoring layer weights — must sum to 1.0.
     # If a layer is unavailable its weight is redistributed to the remaining layers.
     weights:

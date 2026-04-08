@@ -239,13 +239,20 @@ public class PreProcessorService {
         return source.substring(idx, Math.min(idx + brandLower.length(), source.length()));
     }
 
+    private String normalizeResourcePath(String path) {
+        if (path.startsWith("/")) {
+            return "file:" + path;
+        }
+        return path;
+    }
+
     private Map<String, String> loadCharSubstitutions() {
         String path = properties.getCharSubstitutionsPath();
         if (path == null || path.isBlank()) {
             log.warn("No char_substitutions.json path configured, using empty defaults");
             return Map.of();
         }
-        try (InputStream is = resourceLoader.getResource(path).getInputStream()) {
+        try (InputStream is = resourceLoader.getResource(normalizeResourcePath(path)).getInputStream()) {
             Map<String, String> loaded = objectMapper.readValue(is, new TypeReference<LinkedHashMap<String, String>>() {});
             log.info("Loaded {} character substitutions from {}", loaded.size(), path);
             return Collections.unmodifiableMap(loaded);
@@ -275,7 +282,7 @@ public class PreProcessorService {
             log.warn("No brands.json path configured, using empty defaults");
             return List.of();
         }
-        try (InputStream is = resourceLoader.getResource(path).getInputStream()) {
+        try (InputStream is = resourceLoader.getResource(normalizeResourcePath(path)).getInputStream()) {
             JsonNode root = objectMapper.readTree(is);
             JsonNode brandsNode = root.get("brands");
             if (brandsNode == null || !brandsNode.isArray()) {
