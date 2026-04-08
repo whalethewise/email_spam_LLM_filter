@@ -75,13 +75,15 @@ public class SpamFilter implements EmailFilter {
         ParsedEmail parsedEmail = toParsedEmail(message);
 
         // Layer 1: Pre-processor
+        log.info("******************* --> Calling PreProcessor for '{}'", message.subject());
         PreProcessorFindings ppFindings = preProcessorService.analyze(parsedEmail);
-        log.debug("Pre-processor score: {} for '{}'", ppFindings.score(), message.subject());
+        log.info("================ Finished PreProcessor: score={} for '{}'", ppFindings.score(), message.subject());
 
         // Layer 2: SpamAssassin
+        log.info("******************* --> Calling SpamAssassin for '{}'", message.subject());
         String rawContent = buildRawContent(message);
         SpamAssassinResult saResult = spamAssassinClient.check(rawContent);
-        log.debug("SpamAssassin score: {} (available: {}) for '{}'", saResult.rawScore(), saResult.available(), message.subject());
+        log.info("================ Finished SpamAssassin: rawScore={} available={} for '{}'", saResult.rawScore(), saResult.available(), message.subject());
 
         // Layer 3: LLM (skip if SA score exceeds threshold)
         LlmResponse llmResponse = null;
@@ -91,9 +93,9 @@ public class SpamFilter implements EmailFilter {
                     saResult.rawScore(), properties.getSkipLlmAboveScore(), message.subject());
             llmSkipped = true;
         } else {
+            log.info("******************* --> Calling LLM for '{}'", message.subject());
             llmResponse = llmScoringService.score(parsedEmail, ppFindings);
-            log.debug("LLM score: {} (available: {}) for '{}'",
-                    llmResponse.score(), llmResponse.available(), message.subject());
+            log.info("================ Finished LLM: score={} available={} for '{}'", llmResponse.score(), llmResponse.available(), message.subject());
         }
 
         // Combine scores

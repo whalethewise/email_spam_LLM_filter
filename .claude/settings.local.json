@@ -16,7 +16,14 @@
       "Bash(xargs cat:*)",
       "Bash(find:*)",
       "Bash(./gradlew compileJava compileTestJava)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(./gradlew compileJava)",
+      "Bash(xargs -I{} jar tf {})",
+      "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaOptions)",
+      "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaOptions.Builder)",
+      "WebSearch",
+      "WebFetch(domain:spring.io)",
+      "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaChatOptions.Builder)"
     ]
   }
 }

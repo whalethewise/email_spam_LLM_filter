@@ -3,15 +3,19 @@ package ca.aksentiev.emailfilter.llm;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import java.time.Instant;
+
 import ca.aksentiev.emailfilter.email.parser.ParsedEmail;
 import ca.aksentiev.emailfilter.preprocessor.BrandImpersonation;
 import ca.aksentiev.emailfilter.preprocessor.PreProcessorFindings;
 import ca.aksentiev.emailfilter.preprocessor.SuspiciousUrl;
+import jakarta.annotation.PostConstruct;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.stereotype.Service;
 
 /**
@@ -51,6 +55,26 @@ public class LlmScoringService {
         this.objectMapper = objectMapper;
     }
 
+    @PostConstruct
+    void warmup() {
+        log.info("******************* --> LLM warmup call starting");
+        long start = System.currentTimeMillis();
+
+        ParsedEmail fakeEmail = new ParsedEmail(
+                "<warmup@test>", "LLM Warmup Test", "test@example.com", "Test Sender",
+                List.of("me@example.com"), "This is a warmup email to test LLM response time.",
+                java.util.Map.of(), Instant.now());
+        PreProcessorFindings fakeFindings = new PreProcessorFindings(
+                "LLM Warmup Test", "This is a warmup email to test LLM response time.",
+                List.of(), List.of(), false, false, 1.0);
+
+        LlmResponse result = score(fakeEmail, fakeFindings);
+
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("================ LLM warmup complete in {}ms: score={} available={} reason='{}'",
+                elapsed, result.score(), result.available(), result.reason());
+    }
+
     /**
      * Scores an email using LLM semantic analysis enriched with pre-processor findings.
      *
@@ -60,17 +84,26 @@ public class LlmScoringService {
      */
     public LlmResponse score(ParsedEmail email, PreProcessorFindings findings) {
         String userPrompt = buildUserPrompt(email, findings);
-        log.debug("LLM prompt:\n{}", userPrompt);
+
+        OllamaChatOptions options = OllamaChatOptions.builder()
+                .numPredict(256)
+                .temperature(0.0)
+                .disableThinking()
+                .build();
+
+        log.info("LLM request: prompt length={}, system length={}, options=numPredict=256,temp=0.3",
+                userPrompt.length(), SYSTEM_PROMPT.length());
 
         try {
             String response = chatClient
                     .prompt()
                     .system(SYSTEM_PROMPT)
                     .user(userPrompt)
+                    .options(options)
                     .call()
                     .content();
 
-            log.debug("LLM raw response: {}", response);
+            log.info("================ LLM raw response (length={}): {}", response != null ? response.length() : 0, response);
             return parseResponse(response);
         } catch (Exception e) {
             log.warn("Ollama unavailable — {}", e.getMessage());
@@ -115,24 +148,46 @@ public class LlmScoringService {
             String jsonStr = extractJson(response);
             JsonNode json = objectMapper.readTree(jsonStr);
 
-            double score = json.get("score").asDouble();
-            String reason = json.get("reason").asText();
+            JsonNode scoreNode = json.get("score");
+            JsonNode reasonNode = json.get("reason");
 
-            score = Math.max(1.0, Math.min(10.0, score));
-            return new LlmResponse(score, reason, true);
+            if (scoreNode == null || reasonNode == null) {
+                log.warn("LLM response JSON missing 'score' or 'reason' fields");
+                log.debug("Raw LLM response:\n{}", response);
+                return new LlmResponse(5.0, "LLM response parsing failed", true);
+            }
+
+            double score = Math.max(1.0, Math.min(10.0, scoreNode.asDouble()));
+            return new LlmResponse(score, reasonNode.asText(), true);
         } catch (Exception e) {
-            log.warn("Failed to parse LLM response: '{}' — {}", response, e.getMessage());
+            log.warn("Failed to parse LLM response — {}", e.getMessage());
+            log.debug("Raw LLM response:\n{}", response);
             return new LlmResponse(5.0, "LLM response parsing failed", true);
         }
     }
 
     private String extractJson(String response) {
-        int start = response.indexOf('{');
-        int end = response.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return response.substring(start, end + 1);
+        // Strip markdown code fences (```json ... ``` or ``` ... ```)
+        String stripped = response.replaceAll("(?s)```(?:json)?\\s*", "").replaceAll("(?s)```", "").trim();
+
+        // Find the first balanced {...} block
+        int start = stripped.indexOf('{');
+        if (start < 0) {
+            return response;
         }
-        return response;
+        int depth = 0;
+        for (int i = start; i < stripped.length(); i++) {
+            char c = stripped.charAt(i);
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return stripped.substring(start, i + 1);
+                }
+            }
+        }
+        return stripped.substring(start);
     }
 
     private void appendBrandImpersonations(StringBuilder prompt, List<BrandImpersonation> impersonations) {

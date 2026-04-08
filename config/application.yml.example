@@ -30,6 +30,8 @@ spring:
         options:
           model: mistral
           temperature: 0.7
+          # Disable thinking/reasoning mode for Qwen3 models (saves significant latency)
+          think: false
 
 # ---------------------------------------------------------------------------
 # Email Filter Configuration
@@ -77,7 +79,7 @@ emailfilter:
     host: spamassassin
     port: 783
     # Connection and read timeout in milliseconds
-    timeout: 5000
+    timeout: 15000
 
   # --- Spam filter (gate — always runs first) ---
   spam-filter:
@@ -143,6 +145,8 @@ emailfilter:
     inbox-only: true
     # Maximum messages to scan per folder (newest first). 0 = no limit.
     limit: 0
+    # Maximum messages when scanning in dry-run mode. 0 = no limit.
+    dry-run-limit: 50
 
   # --- Dry-run mode (Phase 0) — RECOMMENDED STARTING MODE ---
   # When enabled, the system runs the full scoring pipeline but only logs and

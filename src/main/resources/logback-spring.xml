@@ -17,8 +17,16 @@
         </encoder>
     </appender>
 
-    <!-- Route dry-run report logger to both console and report file -->
+    <!-- Route dry-run loggers to both console and report file -->
     <logger name="ca.aksentiev.emailfilter.audit.LoggingDryRunReportService"
+            level="INFO" additivity="true">
+        <appender-ref ref="DRY_RUN_REPORT"/>
+    </logger>
+    <logger name="ca.aksentiev.emailfilter.action.EmailActionService"
+            level="INFO" additivity="true">
+        <appender-ref ref="DRY_RUN_REPORT"/>
+    </logger>
+    <logger name="ca.aksentiev.emailfilter.audit.LoggingAuditService"
             level="INFO" additivity="true">
         <appender-ref ref="DRY_RUN_REPORT"/>
     </logger>

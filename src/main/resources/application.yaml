@@ -16,8 +16,9 @@ spring:
       base-url: http://192.168.10.180:11434
       chat:
         options:
-          model: mistral
+          model: qwen3.5:9b-nothink
           temperature: 0.7
+          think: false
 
 # ---------------------------------------------------------------------------
 # Email Filter Configuration
@@ -112,6 +113,7 @@ emailfilter:
     enabled: true
     inbox-only: true
     limit: 0
+    dry-run-limit: 50
 
   # --- Dry-run mode (Phase 0) ---
   # Runs the full pipeline but records decisions instead of executing actions.

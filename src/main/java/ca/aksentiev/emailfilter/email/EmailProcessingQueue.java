@@ -98,6 +98,7 @@ public class EmailProcessingQueue {
             try {
                 QueuedEmail item = queue.poll(1, TimeUnit.SECONDS);
                 if (item != null) {
+                    log.info("****************** Picked up email '{}' from QUEUE (remaining={})", item.message().subject(), queue.size());
                     processEmail(item);
                 }
             } catch (InterruptedException e) {

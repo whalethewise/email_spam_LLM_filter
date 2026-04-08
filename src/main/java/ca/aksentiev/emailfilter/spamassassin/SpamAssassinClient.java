@@ -39,6 +39,8 @@ public class SpamAssassinClient {
 
     public SpamAssassinClient(SpamAssassinProperties properties) {
         this.properties = properties;
+        log.info("SpamAssassin client configured: host={}, port={}, timeout={}ms",
+                properties.host(), properties.port(), properties.timeout());
     }
 
     /**

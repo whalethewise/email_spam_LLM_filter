@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
+import ca.aksentiev.emailfilter.config.DryRunProperties;
 import ca.aksentiev.emailfilter.config.ScanProperties;
 import ca.aksentiev.emailfilter.email.EmailProcessingQueue;
 import ca.aksentiev.emailfilter.email.QueuedEmail;
@@ -37,9 +38,9 @@ class ScanServiceTest {
 
     @Test
     void scanWhenDisabledReturnsDisabledResult() {
-        ScanProperties props = new ScanProperties(false, true, 0);
+        ScanProperties props = new ScanProperties(false, true, 0, 50);
         AccountProperties accountProps = new AccountProperties(List.of());
-        ScanService service = new ScanService(accountProps, props, connectionFactory, parsingService, processingQueue);
+        ScanService service = new ScanService(accountProps, props, new DryRunProperties(true, null, null, null), connectionFactory, parsingService, processingQueue);
 
         ScanResult result = service.scan();
 
@@ -50,9 +51,9 @@ class ScanServiceTest {
 
     @Test
     void scanWithNoAccountsReturnsEmptyResult() {
-        ScanProperties props = new ScanProperties(true, true, 0);
+        ScanProperties props = new ScanProperties(true, true, 0, 50);
         AccountProperties accountProps = new AccountProperties(List.of());
-        ScanService service = new ScanService(accountProps, props, connectionFactory, parsingService, processingQueue);
+        ScanService service = new ScanService(accountProps, props, new DryRunProperties(true, null, null, null), connectionFactory, parsingService, processingQueue);
 
         ScanResult result = service.scan();
 
@@ -63,9 +64,9 @@ class ScanServiceTest {
 
     @Test
     void scanWithNullAccountsReturnsEmptyResult() {
-        ScanProperties props = new ScanProperties(true, true, 0);
+        ScanProperties props = new ScanProperties(true, true, 0, 50);
         AccountProperties accountProps = new AccountProperties(null);
-        ScanService service = new ScanService(accountProps, props, connectionFactory, parsingService, processingQueue);
+        ScanService service = new ScanService(accountProps, props, new DryRunProperties(true, null, null, null), connectionFactory, parsingService, processingQueue);
 
         ScanResult result = service.scan();
 
@@ -75,7 +76,7 @@ class ScanServiceTest {
 
     @Test
     void concurrentScanThrowsIllegalState() throws Exception {
-        ScanProperties props = new ScanProperties(true, true, 0);
+        ScanProperties props = new ScanProperties(true, true, 0, 50);
         AccountProperties.Account account = new AccountProperties.Account(
                 "test", "imap.invalid", "user@example.com", "pass",
                 List.of("spam-filter"), new AccountProperties.Folders("INBOX", "Review", "Junk"));
@@ -92,7 +93,7 @@ class ScanServiceTest {
         }).when(connectionFactory).connect(any());
 
         ScanService service = new ScanService(
-                accountProps, props, connectionFactory, parsingService, processingQueue);
+                accountProps, props, new DryRunProperties(true, null, null, null), connectionFactory, parsingService, processingQueue);
 
         Thread scanThread = new Thread(service::scan, "scan-test");
         scanThread.start();
@@ -112,9 +113,9 @@ class ScanServiceTest {
 
     @Test
     void isScanningReturnsFalseInitially() {
-        ScanProperties props = new ScanProperties(true, true, 0);
+        ScanProperties props = new ScanProperties(true, true, 0, 50);
         AccountProperties accountProps = new AccountProperties(List.of());
-        ScanService service = new ScanService(accountProps, props, connectionFactory, parsingService, processingQueue);
+        ScanService service = new ScanService(accountProps, props, new DryRunProperties(true, null, null, null), connectionFactory, parsingService, processingQueue);
 
         assertThat(service.isScanning()).isFalse();
     }

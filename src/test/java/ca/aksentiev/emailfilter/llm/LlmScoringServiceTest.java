@@ -90,12 +90,14 @@ class LlmScoringServiceTest {
         ChatClient.ChatClientRequestSpec requestSpec = mock(ChatClient.ChatClientRequestSpec.class);
         ChatClient.ChatClientRequestSpec afterSystem = mock(ChatClient.ChatClientRequestSpec.class);
         ChatClient.ChatClientRequestSpec afterUser = mock(ChatClient.ChatClientRequestSpec.class);
+        ChatClient.ChatClientRequestSpec afterOptions = mock(ChatClient.ChatClientRequestSpec.class);
         ChatClient.CallResponseSpec callSpec = mock(ChatClient.CallResponseSpec.class);
 
         when(chatClient.prompt()).thenReturn(requestSpec);
         when(requestSpec.system(any(String.class))).thenReturn(afterSystem);
         when(afterSystem.user(any(String.class))).thenReturn(afterUser);
-        when(afterUser.call()).thenReturn(callSpec);
+        when(afterUser.options(any())).thenReturn(afterOptions);
+        when(afterOptions.call()).thenReturn(callSpec);
         when(callSpec.content()).thenThrow(new RuntimeException("Connection refused"));
 
         ParsedEmail email = testEmail();

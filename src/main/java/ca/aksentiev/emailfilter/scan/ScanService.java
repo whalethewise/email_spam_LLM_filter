@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
+import ca.aksentiev.emailfilter.config.DryRunProperties;
 import ca.aksentiev.emailfilter.config.ScanProperties;
 import ca.aksentiev.emailfilter.email.EmailProcessingQueue;
 import ca.aksentiev.emailfilter.email.QueuedEmail;
@@ -37,6 +38,7 @@ public class ScanService {
 
     private final AccountProperties accountProperties;
     private final ScanProperties scanProperties;
+    private final DryRunProperties dryRunProperties;
     private final ImapConnectionFactory connectionFactory;
     private final EmailParsingService parsingService;
     private final EmailProcessingQueue processingQueue;
@@ -45,11 +47,13 @@ public class ScanService {
     public ScanService(
             AccountProperties accountProperties,
             ScanProperties scanProperties,
+            DryRunProperties dryRunProperties,
             ImapConnectionFactory connectionFactory,
             EmailParsingService parsingService,
             EmailProcessingQueue processingQueue) {
         this.accountProperties = accountProperties;
         this.scanProperties = scanProperties;
+        this.dryRunProperties = dryRunProperties;
         this.connectionFactory = connectionFactory;
         this.parsingService = parsingService;
         this.processingQueue = processingQueue;
@@ -144,7 +148,8 @@ public class ScanService {
             return new AccountScanCounts(0, 0);
         }
 
-        folder.open(Folder.READ_ONLY);
+        boolean isDryRun = dryRunProperties.enabled();
+        folder.open(isDryRun ? Folder.READ_ONLY : Folder.READ_WRITE);
         try {
             int messageCount = folder.getMessageCount();
             if (messageCount == 0) {
@@ -153,7 +158,7 @@ public class ScanService {
             }
 
             // Newest first: fetch from end of folder backwards
-            int limit = scanProperties.limit();
+            int limit = scanProperties.effectiveLimit(isDryRun);
             int startIndex = (limit > 0 && limit < messageCount) ? messageCount - limit + 1 : 1;
             Message[] messages = folder.getMessages(startIndex, messageCount);
 
@@ -161,15 +166,15 @@ public class ScanService {
             List<Message> reversed = new ArrayList<>(Arrays.asList(messages));
             java.util.Collections.reverse(reversed);
 
-            log.info("Scanning {} message(s) from folder '{}' for account '{}' (total in folder: {})",
-                    reversed.size(), folderName, account.getName(), messageCount);
+            log.info("Scanning {} message(s) from folder '{}' for account '{}' (mode: {}, total in folder: {})",
+                    reversed.size(), folderName, account.getName(), isDryRun ? "DRY-RUN" : "LIVE", messageCount);
 
             int enqueued = 0;
             int failed = 0;
             for (Message message : reversed) {
                 try {
                     EmailMessage parsed = parsingService.parse(message);
-                    processingQueue.enqueue(new QueuedEmail(parsed, account, true));
+                    processingQueue.enqueue(new QueuedEmail(parsed, account, isDryRun));
                     enqueued++;
                 } catch (Exception e) {
                     failed++;
