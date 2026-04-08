@@ -1,0 +1,8 @@
+whitelist:
+  addresses:
+    - ceo@mycompany.com
+  domains:
+    - mycompany.com
+    - trusted-partner.com
+  patterns:
+    - "*@*.gov.ca"

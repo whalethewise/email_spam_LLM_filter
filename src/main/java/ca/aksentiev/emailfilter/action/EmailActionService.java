@@ -13,7 +13,9 @@ import jakarta.mail.Flags;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
+import jakarta.mail.Session;
 import jakarta.mail.Store;
+import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -122,20 +124,18 @@ public class EmailActionService {
             AccountProperties.Account account,
             String action) {
         try {
-            addXHeaders(message, score, action);
-
             switch (action) {
                 case "leave", "none" -> {
                     log.debug("Leaving email '{}' in inbox", email.subject());
                 }
                 case "move-to-review" -> {
-                    rewriteSubject(message, email.subject(), score);
-                    moveMessage(message, account.getFolders().review());
+                    String tagged = subjectTagger.tag(email.subject(), score);
+                    moveMessage(message, account.getFolders().review(), tagged, score, action);
                     log.info("Moved email '{}' to review folder", email.subject());
                 }
                 case "move-to-junk" -> {
-                    rewriteSubject(message, email.subject(), score);
-                    moveMessage(message, account.getFolders().junk());
+                    String tagged = subjectTagger.tag(email.subject(), score);
+                    moveMessage(message, account.getFolders().junk(), tagged, score, action);
                     log.info("Moved email '{}' to junk folder", email.subject());
                 }
                 case "delete" -> {
@@ -153,25 +153,28 @@ public class EmailActionService {
         }
     }
 
-    void addXHeaders(Message message, ScoreResult score, String action) throws MessagingException {
-        message.setHeader("X-EmailFilter-Score", String.valueOf(Math.round(score.finalScore())));
-        message.setHeader("X-EmailFilter-Category", score.category().name());
-        message.setHeader("X-EmailFilter-LLM-Reason", score.llmReason());
-        message.setHeader("X-EmailFilter-Action", action);
-        message.setHeader("X-EmailFilter-Filter", "spam-filter");
-        message.setHeader("X-EmailFilter-Processed", Instant.now().toString());
-    }
-
-    void rewriteSubject(Message message, String originalSubject, ScoreResult score) throws MessagingException {
-        String tagged = subjectTagger.tag(originalSubject, score);
-        message.setSubject(tagged);
-    }
-
-    void moveMessage(Message message, String targetFolderName) throws MessagingException {
+    /**
+     * Creates a mutable copy of the IMAP message with modified subject and X-headers,
+     * copies it to the target folder, and deletes the original.
+     * IMAP messages are read-only — this is the standard way to "modify" them.
+     */
+    void moveMessage(Message message, String targetFolderName, String newSubject,
+                     ScoreResult score, String action) throws MessagingException {
         Folder sourceFolder = message.getFolder();
         Store store = sourceFolder.getStore();
-        Folder targetFolder = store.getFolder(targetFolderName);
 
+        // Create a mutable copy with updated subject and X-headers
+        MimeMessage modified = new MimeMessage((MimeMessage) message);
+        modified.setSubject(newSubject);
+        modified.setHeader("X-EmailFilter-Score", String.valueOf(Math.round(score.finalScore())));
+        modified.setHeader("X-EmailFilter-Category", score.category().name());
+        modified.setHeader("X-EmailFilter-LLM-Reason", score.llmReason());
+        modified.setHeader("X-EmailFilter-Action", action);
+        modified.setHeader("X-EmailFilter-Filter", "spam-filter");
+        modified.setHeader("X-EmailFilter-Processed", Instant.now().toString());
+        modified.saveChanges();
+
+        Folder targetFolder = store.getFolder(targetFolderName);
         if (!targetFolder.exists()) {
             targetFolder.create(Folder.HOLDS_MESSAGES);
         }
@@ -179,7 +182,7 @@ public class EmailActionService {
             targetFolder.open(Folder.READ_WRITE);
         }
 
-        sourceFolder.copyMessages(new Message[] {message}, targetFolder);
+        targetFolder.appendMessages(new Message[] {modified});
         message.setFlag(Flags.Flag.DELETED, true);
         sourceFolder.expunge();
 
