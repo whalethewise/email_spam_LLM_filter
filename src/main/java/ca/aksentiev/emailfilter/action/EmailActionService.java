@@ -6,6 +6,7 @@ import ca.aksentiev.emailfilter.config.AccountProperties;
 import ca.aksentiev.emailfilter.config.DryRunProperties;
 import ca.aksentiev.emailfilter.config.SpamFilterProperties;
 import ca.aksentiev.emailfilter.email.parser.ParsedEmail;
+import ca.aksentiev.emailfilter.filter.EmailMessage;
 import ca.aksentiev.emailfilter.scoring.ScoreCategory;
 import ca.aksentiev.emailfilter.scoring.ScoreResult;
 import jakarta.mail.Flags;
@@ -64,6 +65,34 @@ public class EmailActionService {
         }
 
         auditService.record(email, score, action, dryRunProperties.enabled());
+    }
+
+    /**
+     * Executes the appropriate action using an EmailMessage and FilterResult metadata.
+     * Respects forceDryRun flag from scan processing.
+     *
+     * @param emailMessage the filter-layer email representation
+     * @param score        the scoring result
+     * @param account      the account configuration
+     * @param forceDryRun  if true, forces dry-run regardless of global setting
+     */
+    public void execute(EmailMessage emailMessage, ScoreResult score, AccountProperties.Account account, boolean forceDryRun) {
+        String action = resolveAction(score.category());
+        ParsedEmail email = toParsedEmail(emailMessage);
+
+        if (dryRunProperties.enabled() || forceDryRun) {
+            handleDryRun(email, score, action);
+        } else {
+            handleLive(email, score, emailMessage.rawMessage(), account, action);
+        }
+
+        auditService.record(email, score, action, dryRunProperties.enabled() || forceDryRun);
+    }
+
+    private ParsedEmail toParsedEmail(EmailMessage msg) {
+        return new ParsedEmail(
+                msg.messageId(), msg.subject(), msg.from(), msg.fromName(),
+                msg.to(), msg.bodyText(), msg.headers(), Instant.now());
     }
 
     /**

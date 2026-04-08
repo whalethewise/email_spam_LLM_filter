@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import ca.aksentiev.emailfilter.action.EmailActionService;
 import ca.aksentiev.emailfilter.config.ProcessingProperties;
 import ca.aksentiev.emailfilter.filter.FilterChainDispatcher;
 import ca.aksentiev.emailfilter.filter.FilterResult;
+import ca.aksentiev.emailfilter.scoring.ScoreResult;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,15 +31,17 @@ public class EmailProcessingQueue {
 
     private final LinkedBlockingQueue<QueuedEmail> queue = new LinkedBlockingQueue<>();
     private final FilterChainDispatcher dispatcher;
+    private final EmailActionService actionService;
     private final int consumerThreadCount;
     private final long shutdownTimeoutMs;
     private final List<Thread> consumerThreads = new ArrayList<>();
     private volatile boolean running;
 
-    public EmailProcessingQueue(ProcessingProperties properties, FilterChainDispatcher dispatcher) {
+    public EmailProcessingQueue(ProcessingProperties properties, FilterChainDispatcher dispatcher, EmailActionService actionService) {
         this.consumerThreadCount = properties.consumerThreads();
         this.shutdownTimeoutMs = properties.shutdownTimeoutMs();
         this.dispatcher = dispatcher;
+        this.actionService = actionService;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -115,6 +119,11 @@ public class EmailProcessingQueue {
             FilterResult result = dispatcher.dispatch(item.message(), item.account());
             log.info("[{}] Processed email '{}' for account '{}': action={} reason='{}'",
                     mode, subject, accountName, result.action(), result.reason());
+
+            ScoreResult scoreResult = (ScoreResult) result.metadata().get("scoreResult");
+            if (scoreResult != null) {
+                actionService.execute(item.message(), scoreResult, item.account(), item.forceDryRun());
+            }
         } catch (Exception e) {
             log.error("[{}] Failed to process email '{}' for account '{}': {}",
                     mode, subject, accountName, e.getMessage(), e);

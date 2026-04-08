@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Default Spring Boot console appender -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- Dry-run report file appender — rolls daily -->
+    <appender name="DRY_RUN_REPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${DRY_RUN_REPORT_DIR:-data/reports}/dry-run-report.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${DRY_RUN_REPORT_DIR:-data/reports}/dry-run-report.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Route dry-run report logger to both console and report file -->
+    <logger name="ca.aksentiev.emailfilter.audit.LoggingDryRunReportService"
+            level="INFO" additivity="true">
+        <appender-ref ref="DRY_RUN_REPORT"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>
