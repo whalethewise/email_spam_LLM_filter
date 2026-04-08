@@ -2,6 +2,8 @@ package ca.aksentiev.emailfilter.api;
 
 import java.util.Map;
 
+import ca.aksentiev.emailfilter.filter.spam.SpamFilter;
+import ca.aksentiev.emailfilter.preprocessor.PreProcessorService;
 import ca.aksentiev.emailfilter.scan.ScanResult;
 import ca.aksentiev.emailfilter.scan.ScanService;
 import org.slf4j.Logger;
@@ -22,22 +24,27 @@ public class ManagementController {
     private static final Logger log = LoggerFactory.getLogger(ManagementController.class);
 
     private final ScanService scanService;
+    private final PreProcessorService preProcessorService;
+    private final SpamFilter spamFilter;
 
-    public ManagementController(ScanService scanService) {
+    public ManagementController(ScanService scanService, PreProcessorService preProcessorService, SpamFilter spamFilter) {
         this.scanService = scanService;
+        this.preProcessorService = preProcessorService;
+        this.spamFilter = spamFilter;
     }
 
     /**
-     * Reloads configuration files (filters.yml, brands.json, char_substitutions.json).
-     * Placeholder — actual reload logic will be wired when those services support hot-reload.
+     * Reloads configuration files: brands.json, char_substitutions.json, whitelist.yml.
      */
     @PostMapping("/reload")
     public ResponseEntity<Map<String, Object>> reload() {
         log.info("Reload requested via management API");
-        // TODO: wire to PreProcessorService.reload(), FilterEngine.reload() when implemented
+        preProcessorService.reload();
+        spamFilter.reloadWhitelist();
+        log.info("Reload complete: preprocessor data + whitelist refreshed");
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Reload complete",
+                "message", "Reload complete: preprocessor data + whitelist refreshed",
                 "timestamp", System.currentTimeMillis()));
     }
 

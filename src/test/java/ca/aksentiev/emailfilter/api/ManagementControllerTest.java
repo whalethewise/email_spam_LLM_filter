@@ -1,5 +1,7 @@
 package ca.aksentiev.emailfilter.api;
 
+import ca.aksentiev.emailfilter.filter.spam.SpamFilter;
+import ca.aksentiev.emailfilter.preprocessor.PreProcessorService;
 import ca.aksentiev.emailfilter.scan.ScanResult;
 import ca.aksentiev.emailfilter.scan.ScanService;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,12 @@ class ManagementControllerTest {
 
     @Mock
     private ScanService scanService;
+
+    @Mock
+    private PreProcessorService preProcessorService;
+
+    @Mock
+    private SpamFilter spamFilter;
 
     @InjectMocks
     private ManagementController controller;

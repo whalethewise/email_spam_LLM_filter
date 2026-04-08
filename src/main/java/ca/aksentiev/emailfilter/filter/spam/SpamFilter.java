@@ -1,7 +1,10 @@
 package ca.aksentiev.emailfilter.filter.spam;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import ca.aksentiev.emailfilter.config.SpamFilterProperties;
@@ -20,6 +23,8 @@ import ca.aksentiev.emailfilter.spamassassin.SpamAssassinClient;
 import ca.aksentiev.emailfilter.spamassassin.SpamAssassinResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ResourceLoader;
+import org.yaml.snakeyaml.Yaml;
 import org.springframework.stereotype.Component;
 
 /**
@@ -44,20 +49,62 @@ public class SpamFilter implements EmailFilter {
     private final SpamAssassinClient spamAssassinClient;
     private final LlmScoringService llmScoringService;
     private final ScoringService scoringService;
-    private final Whitelist whitelist;
+    private final ResourceLoader resourceLoader;
+    private volatile Whitelist whitelist;
 
     public SpamFilter(
             SpamFilterProperties properties,
             PreProcessorService preProcessorService,
             SpamAssassinClient spamAssassinClient,
             LlmScoringService llmScoringService,
-            ScoringService scoringService) {
+            ScoringService scoringService,
+            ResourceLoader resourceLoader) {
         this.properties = properties;
         this.preProcessorService = preProcessorService;
         this.spamAssassinClient = spamAssassinClient;
         this.llmScoringService = llmScoringService;
         this.scoringService = scoringService;
-        this.whitelist = new Whitelist(properties.getWhitelist());
+        this.resourceLoader = resourceLoader;
+        this.whitelist = loadWhitelist();
+    }
+
+    /**
+     * Reloads the whitelist from the configured file path.
+     */
+    public void reloadWhitelist() {
+        this.whitelist = loadWhitelist();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Whitelist loadWhitelist() {
+        String path = properties.getWhitelistPath();
+        if (path == null || path.isBlank()) {
+            log.info("No whitelist path configured, using whitelist from application.yml");
+            return new Whitelist(properties.getWhitelist());
+        }
+
+        String resolvedPath = path.startsWith("/") ? "file:" + path : path;
+        try (InputStream is = resourceLoader.getResource(resolvedPath).getInputStream()) {
+            Yaml yaml = new Yaml();
+            Map<String, Object> root = yaml.load(is);
+            Map<String, Object> wl = (Map<String, Object>) root.get("whitelist");
+            if (wl == null) {
+                log.warn("whitelist.yml has no 'whitelist' key, using empty defaults");
+                return new Whitelist(new SpamFilterProperties.WhitelistConfig(List.of(), List.of(), List.of()));
+            }
+
+            List<String> addresses = wl.get("addresses") != null ? (List<String>) wl.get("addresses") : List.of();
+            List<String> domains = wl.get("domains") != null ? (List<String>) wl.get("domains") : List.of();
+            List<String> patterns = wl.get("patterns") != null ? (List<String>) wl.get("patterns") : List.of();
+
+            Whitelist loaded = new Whitelist(new SpamFilterProperties.WhitelistConfig(addresses, domains, patterns));
+            log.info("Loaded whitelist from {}: {} addresses, {} domains, {} patterns",
+                    path, addresses.size(), domains.size(), patterns.size());
+            return loaded;
+        } catch (IOException e) {
+            log.warn("Failed to load whitelist from {}, falling back to application.yml: {}", path, e.getMessage());
+            return new Whitelist(properties.getWhitelist());
+        }
     }
 
     @Override

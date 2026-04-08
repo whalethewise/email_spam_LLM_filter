@@ -58,6 +58,7 @@ emailfilter:
     # Paths to pre-processor data files (mounted as Docker volumes in production)
     brands-path: classpath:brands.json
     char-substitutions-path: classpath:char_substitutions.json
+    whitelist-path: classpath:whitelist.yml
     # Scoring layer weights (must sum to 1.0)
     weights:
       preprocessor: 0.20

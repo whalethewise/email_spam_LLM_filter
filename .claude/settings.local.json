@@ -23,7 +23,8 @@
       "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaOptions.Builder)",
       "WebSearch",
       "WebFetch(domain:spring.io)",
-      "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaChatOptions.Builder)"
+      "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaChatOptions.Builder)",
+      "Bash(./gradlew compileTestJava)"
     ]
   }
 }

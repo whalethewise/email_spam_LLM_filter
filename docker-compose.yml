@@ -37,6 +37,7 @@ services:
       - ./config/filters.yml:/app/config/filters.yml:ro
       - ./config/brands.json:/app/config/brands.json:ro
       - ./config/char_substitutions.json:/app/config/char_substitutions.json:ro
+      - ./config/whitelist.yml:/app/config/whitelist.yml:ro
       # Dry-run report output directory
       - ./data/reports:/var/log/email-filter
     networks:

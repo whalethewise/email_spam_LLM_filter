@@ -17,6 +17,7 @@ import ca.aksentiev.emailfilter.scoring.ScoreResult;
 import ca.aksentiev.emailfilter.scoring.ScoringService;
 import ca.aksentiev.emailfilter.spamassassin.SpamAssassinClient;
 import ca.aksentiev.emailfilter.spamassassin.SpamAssassinResult;
+import org.springframework.core.io.ResourceLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,7 +53,7 @@ class SpamFilterTest {
     @BeforeEach
     void setUp() {
         properties = buildProperties(List.of(), List.of("trusted.com"), List.of());
-        spamFilter = new SpamFilter(properties, preProcessorService, spamAssassinClient, llmScoringService, scoringService);
+        spamFilter = new SpamFilter(properties, preProcessorService, spamAssassinClient, llmScoringService, scoringService, mock(ResourceLoader.class));
     }
 
     @Test
@@ -167,6 +169,7 @@ class SpamFilterTest {
                 8.0,
                 "classpath:brands.json",
                 "classpath:char_substitutions.json",
+                null,
                 new SpamFilterProperties.Weights(0.20, 0.35, 0.45),
                 new SpamFilterProperties.Thresholds(3, 6),
                 new SpamFilterProperties.Actions("none", "move-to-review", "move-to-junk"),

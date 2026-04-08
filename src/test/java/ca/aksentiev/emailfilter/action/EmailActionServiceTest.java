@@ -47,6 +47,7 @@ class EmailActionServiceTest {
                 8.0,
                 "classpath:brands.json",
                 "classpath:char_substitutions.json",
+                null,
                 new SpamFilterProperties.Weights(0.20, 0.35, 0.45),
                 new SpamFilterProperties.Thresholds(3, 6),
                 new SpamFilterProperties.Actions("none", "move-to-review", "move-to-junk"),
