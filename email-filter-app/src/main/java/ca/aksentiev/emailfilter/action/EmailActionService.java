@@ -174,7 +174,9 @@ public class EmailActionService {
             log.error("Failed to execute action '{}' on email '{}': {}", action, email.subject(), e.getMessage(), e);
         } finally {
             if (store != null) {
-                try { store.close(); } catch (MessagingException ignored) {}
+                try { store.close(); } catch (MessagingException e) {
+                    log.debug("Error closing IMAP store: {}", e.getMessage());
+                }
             }
         }
     }
@@ -197,7 +199,7 @@ public class EmailActionService {
         modified.setSubject(newSubject);
         modified.setHeader("X-EmailFilter-Score", String.valueOf(Math.round(score.finalScore())));
         modified.setHeader("X-EmailFilter-Category", score.category().name());
-        modified.setHeader("X-EmailFilter-LLM-Reason", score.llmReason());
+        modified.setHeader("X-EmailFilter-LLM-Reason", sanitizeHeaderValue(score.llmReason()));
         modified.setHeader("X-EmailFilter-Action", action);
         modified.setHeader("X-EmailFilter-Filter", "spam-filter");
         modified.setHeader("X-EmailFilter-Processed", Instant.now().toString());
@@ -218,6 +220,13 @@ public class EmailActionService {
         if (targetFolder.isOpen()) {
             targetFolder.close(false);
         }
+    }
+
+    private String sanitizeHeaderValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replaceAll("[\\r\\n]", " ");
     }
 
     private String buildReason(ScoreResult score) {

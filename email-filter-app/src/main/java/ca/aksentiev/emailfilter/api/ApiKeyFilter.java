@@ -1,6 +1,8 @@
 package ca.aksentiev.emailfilter.api;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 import ca.aksentiev.emailfilter.config.ReloadApiProperties;
 import jakarta.servlet.FilterChain;
@@ -41,7 +43,9 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (providedKey == null || !providedKey.equals(expectedKey)) {
+        if (providedKey == null || !MessageDigest.isEqual(
+                providedKey.getBytes(StandardCharsets.UTF_8),
+                expectedKey.getBytes(StandardCharsets.UTF_8))) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing API key");
             return;
         }

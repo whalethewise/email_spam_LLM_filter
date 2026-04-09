@@ -26,7 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Loads staging-filters.yml and binds it to a Map of filter name to FilterDefinition.
@@ -60,7 +62,7 @@ public class LabFiltersConfig {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> loadYaml() {
-        Yaml yaml = new Yaml();
+        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
 
         // Try file on disk first (working directory)
         File file = new File("staging-filters.yml");

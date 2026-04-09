@@ -24,7 +24,9 @@ import ca.aksentiev.emailfilter.spamassassin.SpamAssassinResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ResourceLoader;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -85,7 +87,7 @@ public class SpamFilter implements EmailFilter {
 
         String resolvedPath = path.startsWith("/") ? "file:" + path : path;
         try (InputStream is = resourceLoader.getResource(resolvedPath).getInputStream()) {
-            Yaml yaml = new Yaml();
+            Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
             Map<String, Object> root = yaml.load(is);
             Map<String, Object> wl = (Map<String, Object>) root.get("whitelist");
             if (wl == null) {

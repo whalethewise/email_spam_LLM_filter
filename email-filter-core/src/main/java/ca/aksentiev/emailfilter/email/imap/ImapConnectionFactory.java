@@ -35,6 +35,8 @@ public class ImapConnectionFactory {
         props.setProperty("mail.imaps.timeout", String.valueOf(imapProperties.getSocketTimeout()));
         props.setProperty("mail.imaps.connectiontimeout", String.valueOf(imapProperties.getConnectionTimeout()));
         props.setProperty("mail.imaps.usesocketchannels", "false");
+        props.setProperty("mail.imaps.ssl.checkserveridentity", "true");
+        props.setProperty("mail.imaps.ssl.protocols", "TLSv1.2 TLSv1.3");
 
         Session session = Session.getInstance(props);
         Store store = session.getStore("imaps");

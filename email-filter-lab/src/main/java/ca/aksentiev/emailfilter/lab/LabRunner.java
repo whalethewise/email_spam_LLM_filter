@@ -169,6 +169,10 @@ public class LabRunner implements ApplicationRunner {
         props.setProperty("mail." + protocol + ".timeout", "30000");
         props.setProperty("mail." + protocol + ".connectiontimeout", "15000");
         props.setProperty("mail." + protocol + ".usesocketchannels", "false");
+        if (imap.ssl()) {
+            props.setProperty("mail." + protocol + ".ssl.checkserveridentity", "true");
+            props.setProperty("mail." + protocol + ".ssl.protocols", "TLSv1.2 TLSv1.3");
+        }
 
         Session session = Session.getInstance(props);
         Store store = session.getStore(protocol);
