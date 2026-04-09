@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: email-filter-lab
+  main:
+    web-application-type: none
+  ai:
+    ollama:
+      base-url: ${OLLAMA_URL:http://192.168.10.158:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen3.5:9b}
+          temperature: 0.0
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+lab:
+  imap:
+    host: ${IMAP_HOST}
+    port: ${IMAP_PORT:993}
+    ssl: ${IMAP_SSL:true}
+    username: ${IMAP_USERNAME}
+    password: ${IMAP_PASSWORD}
+    folder: ${IMAP_FOLDER:INBOX.LLM-Spam_Review}
+  ollama:
+    base-url: ${OLLAMA_URL:http://192.168.10.158:11434}
+    model: ${OLLAMA_MODEL:qwen3.5:9b}
+    timeout-seconds: 120
+  smtp:
+    from-address: ${SMTP_FROM_ADDRESS:${SMTP_USERNAME:}}
+    from-name: "AI Email Filter Lab"
+  run:
+    filter: ${LAB_FILTER:spam-filter}
+    limit: ${LIMIT:0}
+    dry-run: ${DRY_RUN:true}
+    report-file: ${REPORT_FILE:}
+
+logging:
+  level:
+    ca.aksentiev: INFO
+    org.springframework.ai: WARN
+    org.springframework: WARN

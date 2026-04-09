@@ -1,0 +1,145 @@
+filters:
+
+  # ── Scoring ──────────────────────────────────────────────────────────────────
+
+  spam-filter:
+    type: scoring
+    enabled: true
+    ollama-model: "qwen3.5:9b"
+    whitelist:
+      addresses: []
+      domains:
+        - "aksentiev.ca"
+        - "aksentyev.net"
+      patterns: []
+    pre-processor:
+      enabled: true
+      brands-file: "brands.json"
+      char-substitutions-file: "char_substitutions.json"
+    spamassassin:
+      enabled: false
+      host: "spamassassin"
+      port: 783
+      skip-llm-above-score: 12.0
+    scoring:
+      weights:
+        preprocessor: 0.20
+        spamassassin: 0.05
+        llm: 0.60
+      thresholds:
+        safe-max: 3
+        review-max: 6
+      actions:
+        safe: leave
+        review: move-to-junk
+        spam: move-to-junk
+    prompt: |
+      You are an email classifier helping a Canadian software professional
+      manage his inbox. Your job is to distinguish genuinely useful email
+      from unwanted spam.
+
+      Most email is legitimate. Only score high if there is clear evidence
+      of deception, impersonation, or unsolicited commercial intent with
+      no prior relationship.
+
+      Score guide:
+        1-2  Definitely legitimate — expected, wanted, or ongoing conversation
+        3-4  Probably legitimate — promotional but from a trusted sender
+        5-6  Borderline — unsolicited but not clearly deceptive
+        7-8  Likely spam — manipulative language or impersonation signals
+        9-10 Clear spam — brand impersonation, character substitution, phishing
+
+      IMPORTANT: If the email contains quoted reply history (lines starting
+      with ">" or "On [date] ... wrote:"), this is an ongoing conversation
+      — score 1-3 unless the original sender shows clear deception.
+
+      From: {email.from}
+      Subject: {email.subject}
+
+      {email.body}
+
+      Return ONLY valid JSON:
+      {"score": <1-10>, "reason": "<one sentence explanation>"}
+
+  # ── Extraction ───────────────────────────────────────────────────────────────
+
+  job-search-filter:
+    type: extraction
+    enabled: true
+    ollama-model: "qwen3.5:9b"
+    source-domains:
+      linkedin.com: "LinkedIn"
+      indeed.com: "Indeed"
+      glassdoor.com: "Glassdoor"
+      ziprecruiter.com: "ZipRecruiter"
+      workopolis.com: "Workopolis"
+      jobbank.gc.ca: "Job Bank Canada"
+    data:
+      levels:
+        - "Director"
+        - "Sr. Director"
+        - "Senior Director"
+        - "VP"
+        - "Vice President"
+        - "Manager"
+        - "Senior Manager"
+        - "Head of"
+      domains:
+        - "Software"
+        - "Software Engineering"
+        - "Engineering"
+        - "Development"
+        - "Technology"
+        - "Platform"
+    prompt: |
+      You are analyzing a job notification email from {source}.
+      Find all positions where the title level is one of: {levels}
+      AND the domain relates to one of: {domains}.
+
+      If matches are found, format the response as:
+
+      {source} — {email.subject}
+
+      • {title} @ {company} ({location})
+        {link}
+
+      If NO positions match, respond with exactly: NONE
+    actions:
+      on-response:
+        - type: send-email
+          to: "${JOB_NOTIFY_ADDRESS}"
+          subject: "[Job Alert] {source} — {email.subject}"
+          body: "{llm.response}"
+      always:
+        - type: move-to-folder
+          folder: "Job Search Emails Processed"
+
+  # ── Logistics ────────────────────────────────────────────────────────────────
+
+  logistics-filter:
+    type: logistics
+    enabled: true
+    rules:
+      - condition:
+          subject-starts-with: "[Job Alert]"
+        actions:
+          - type: move-to-folder
+            folder: "Job Alerts"
+      - condition:
+          subject-starts-with: "[LLM Summary]"
+        actions:
+          - type: move-to-folder
+            folder: "Summaries"
+      - condition:
+          any-of:
+            - subject-starts-with: "[FLYER"
+            - subject-starts-with: "[SALE"
+        actions:
+          - type: flag
+          - type: move-to-folder
+            folder: "Deals"
+      - condition:
+          from-domain: "linkedin.com"
+        actions:
+          - type: move-to-folder
+            folder: "Job Search Emails Processed"
