@@ -5,17 +5,19 @@ import java.time.Instant;
 import ca.aksentiev.emailfilter.config.AccountProperties;
 import ca.aksentiev.emailfilter.config.DryRunProperties;
 import ca.aksentiev.emailfilter.config.SpamFilterProperties;
+import ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory;
 import ca.aksentiev.emailfilter.email.parser.ParsedEmail;
 import ca.aksentiev.emailfilter.filter.EmailMessage;
 import ca.aksentiev.emailfilter.scoring.ScoreCategory;
 import ca.aksentiev.emailfilter.scoring.ScoreResult;
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;
+import jakarta.mail.FolderClosedException;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
-import jakarta.mail.Session;
 import jakarta.mail.Store;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.search.MessageIDTerm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -35,18 +37,21 @@ public class EmailActionService {
     private final SubjectTagger subjectTagger;
     private final AuditService auditService;
     private final DryRunReportService dryRunReportService;
+    private final ImapConnectionFactory connectionFactory;
 
     public EmailActionService(
             SpamFilterProperties spamFilterProperties,
             DryRunProperties dryRunProperties,
             SubjectTagger subjectTagger,
             AuditService auditService,
-            DryRunReportService dryRunReportService) {
+            DryRunReportService dryRunReportService,
+            ImapConnectionFactory connectionFactory) {
         this.spamFilterProperties = spamFilterProperties;
         this.dryRunProperties = dryRunProperties;
         this.subjectTagger = subjectTagger;
         this.auditService = auditService;
         this.dryRunReportService = dryRunReportService;
+        this.connectionFactory = connectionFactory;
     }
 
     /**
@@ -123,48 +128,72 @@ public class EmailActionService {
             Message message,
             AccountProperties.Account account,
             String action) {
+        if ("leave".equals(action) || "none".equals(action)) {
+            log.debug("Leaving email '{}' in inbox", email.subject());
+            return;
+        }
+
+        Store store = null;
         try {
+            store = connectionFactory.connect(account);
+            Folder inbox = store.getFolder(account.getFolders().inbox());
+            inbox.open(Folder.READ_WRITE);
+
+            Message found = findByMessageId(inbox, email.messageId());
+            if (found == null) {
+                log.warn("Could not find email '{}' (Message-ID: {}) in inbox for action '{}'",
+                        email.subject(), email.messageId(), action);
+                return;
+            }
+
             switch (action) {
-                case "leave", "none" -> {
-                    log.debug("Leaving email '{}' in inbox", email.subject());
-                }
                 case "move-to-review" -> {
                     String tagged = subjectTagger.tag(email.subject(), score);
-                    moveMessage(message, account.getFolders().review(), tagged, score, action);
+                    moveMessage(found, inbox, store, account.getFolders().review(), tagged, score, action);
                     log.info("Moved email '{}' to review folder", email.subject());
                 }
                 case "move-to-junk" -> {
                     String tagged = subjectTagger.tag(email.subject(), score);
-                    moveMessage(message, account.getFolders().junk(), tagged, score, action);
+                    moveMessage(found, inbox, store, account.getFolders().junk(), tagged, score, action);
                     log.info("Moved email '{}' to junk folder", email.subject());
                 }
                 case "delete" -> {
-                    deleteMessage(message);
+                    found.setFlag(Flags.Flag.DELETED, true);
+                    inbox.expunge();
                     log.info("Deleted email '{}'", email.subject());
                 }
                 case "flag" -> {
-                    flagMessage(message);
+                    found.setFlag(Flags.Flag.FLAGGED, true);
                     log.info("Flagged email '{}'", email.subject());
                 }
                 default -> log.warn("Unknown action '{}' for email '{}'", action, email.subject());
             }
+
+            inbox.close(false);
         } catch (MessagingException e) {
             log.error("Failed to execute action '{}' on email '{}': {}", action, email.subject(), e.getMessage(), e);
+        } finally {
+            if (store != null) {
+                try { store.close(); } catch (MessagingException ignored) {}
+            }
         }
     }
 
-    /**
-     * Creates a mutable copy of the IMAP message with modified subject and X-headers,
-     * copies it to the target folder, and deletes the original.
-     * IMAP messages are read-only — this is the standard way to "modify" them.
-     */
-    void moveMessage(Message message, String targetFolderName, String newSubject,
-                     ScoreResult score, String action) throws MessagingException {
-        Folder sourceFolder = message.getFolder();
-        Store store = sourceFolder.getStore();
+    private Message findByMessageId(Folder folder, String messageId) throws MessagingException {
+        if (messageId == null || messageId.isBlank()) {
+            return null;
+        }
+        Message[] found = folder.search(new MessageIDTerm(messageId));
+        return found.length > 0 ? found[0] : null;
+    }
 
-        // Create a mutable copy with updated subject and X-headers
-        MimeMessage modified = new MimeMessage((MimeMessage) message);
+    /**
+     * Creates a mutable copy with modified subject and X-headers,
+     * appends it to the target folder, and deletes the original.
+     */
+    void moveMessage(Message original, Folder sourceFolder, Store store, String targetFolderName,
+                     String newSubject, ScoreResult score, String action) throws MessagingException {
+        MimeMessage modified = new MimeMessage((MimeMessage) original);
         modified.setSubject(newSubject);
         modified.setHeader("X-EmailFilter-Score", String.valueOf(Math.round(score.finalScore())));
         modified.setHeader("X-EmailFilter-Category", score.category().name());
@@ -176,28 +205,19 @@ public class EmailActionService {
 
         Folder targetFolder = store.getFolder(targetFolderName);
         if (!targetFolder.exists()) {
-            targetFolder.create(Folder.HOLDS_MESSAGES);
+            boolean created = targetFolder.create(Folder.HOLDS_MESSAGES);
+            log.info("Created IMAP folder '{}': {}", targetFolderName, created);
+            targetFolder.setSubscribed(true);
         }
-        if (!targetFolder.isOpen()) {
-            targetFolder.open(Folder.READ_WRITE);
-        }
+        targetFolder.open(Folder.READ_WRITE);
 
         targetFolder.appendMessages(new Message[] {modified});
-        message.setFlag(Flags.Flag.DELETED, true);
+        original.setFlag(Flags.Flag.DELETED, true);
         sourceFolder.expunge();
 
         if (targetFolder.isOpen()) {
             targetFolder.close(false);
         }
-    }
-
-    void deleteMessage(Message message) throws MessagingException {
-        message.setFlag(Flags.Flag.DELETED, true);
-        message.getFolder().expunge();
-    }
-
-    void flagMessage(Message message) throws MessagingException {
-        message.setFlag(Flags.Flag.FLAGGED, true);
     }
 
     private String buildReason(ScoreResult score) {

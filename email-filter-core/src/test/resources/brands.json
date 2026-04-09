@@ -1,0 +1,44 @@
+{
+  "brands": [
+    {
+      "name": "Amazon",
+      "domains": ["amazon.com", "amazon.ca", "amazon.co.uk"]
+    },
+    {
+      "name": "Apple",
+      "domains": ["apple.com", "icloud.com"]
+    },
+    {
+      "name": "PayPal",
+      "domains": ["paypal.com", "paypal.ca"]
+    },
+    {
+      "name": "Microsoft",
+      "domains": ["microsoft.com", "outlook.com", "live.com"]
+    },
+    {
+      "name": "Google",
+      "domains": ["google.com", "gmail.com"]
+    },
+    {
+      "name": "Netflix",
+      "domains": ["netflix.com"]
+    },
+    {
+      "name": "Costco",
+      "domains": ["costco.com", "costco.ca"]
+    },
+    {
+      "name": "BestBuy",
+      "domains": ["bestbuy.com", "bestbuy.ca"]
+    },
+    {
+      "name": "Walmart",
+      "domains": ["walmart.com", "walmart.ca"]
+    },
+    {
+      "name": "Bank of America",
+      "domains": ["bankofamerica.com", "bofa.com"]
+    }
+  ]
+}

@@ -35,17 +35,71 @@ public class LlmScoringService {
 
     static final String SYSTEM_PROMPT =
             """
-            You are a spam detection system. Analyze the email content and pre-processor findings provided.
-            Return ONLY valid JSON in this exact format, with no other text:
-            {"score": <number 1-10>, "reason": "<brief explanation>"}
+                You are an email classifier helping a Canadian software professional manage his inbox.
+                Your job is to distinguish genuinely useful email from unwanted spam.
 
-            Scoring guide:
-            1-3: Legitimate email
-            4-6: Suspicious, possibly spam
-            7-10: Very likely spam or phishing
+                Most email is legitimate. Only score high if there is clear evidence of deception,
+                impersonation, or unsolicited commercial intent with no prior relationship.
 
-            Consider the pre-processor findings carefully — they highlight character substitution tricks, \
-            brand impersonation, and suspicious URLs that humans would miss.""";
+                Score guide:
+                  1-2  Definitely legitimate — expected, wanted, or part of an ongoing conversation
+                  3-4  Probably legitimate — promotional but from a trusted sender or known brand
+                  5-6  Borderline — unsolicited but not clearly deceptive
+                  7-8  Likely spam — manipulative language, suspicious sender, or impersonation signals
+                  9-10 Clear spam — brand impersonation, character substitution, phishing, or outright fraud
+
+                Examples of score 1-2 (legitimate):
+                - Reply in an ongoing email thread (contains quoted history)
+                - Recruiter message about a job opportunity, even if unsolicited
+                - Bank statement or transaction notification (TD, RBC, CIBC, BMO, Scotiabank)
+                - Government correspondence (CRA, Canada Post, Service Canada)
+                - Order confirmation or shipping notification from a known retailer
+                - GitHub notifications, developer newsletters, tech discussion lists
+
+                Examples of score 9-10 (clear spam):
+                - Sender domain impersonates a known brand (e.g. amazon-delivery.ru)
+                - Urgent "account suspended" or "verify now" threats
+                - Prize, lottery, or inheritance notifications
+                - Requests for personal information or credentials
+
+                Known legitimate third-party sending domains (do NOT flag as impersonation):
+                - medallia.ca, medallia.com — customer survey platform (Canadian Tire, retailers)
+                - ashbyhq.com — recruiting platform (Scribd, Super.com, etc.)
+                - myworkday.com — HR/recruiting platform
+                - greenhouse-mail.io — recruiting platform
+                - jobdivamail.com — recruiting platform
+                - notify.cloudflare.com — Cloudflare notifications
+                - x.com — Twitter/X (rebranded from twitter.com)
+
+                Known legitimate Canadian organizations:
+                - blood.ca — Canadian Blood Services (also uses bloodservices.ca)
+                - altis.com — Canadian staffing firm (marketing links may go through acemlnb.com or similar)
+                - experis.ca — Manpower/Experis staffing (used for government contract recruitment)
+                IMPORTANT: If the email contains quoted reply history (lines starting with ">" or
+                "On [date] ... wrote:"), this is part of an ongoing conversation — score 1-3
+                unless the original sender shows clear signs of deception.
+
+                Canadian staffing firms that legitimately handle federal government security
+                clearances (Reliability, Secret, Top Secret) include Experis, Manpower, Adecco,
+                Hays, and Randstad. These firms routinely request government-issued ID,
+                fingerprinting appointments (via Commissionaires), and form completion over email
+                as part of the PSPC clearance process. This is expected and legitimate for
+                candidates pursuing federal government contracts — do not treat ID requests from
+                these firms as phishing indicators.
+
+                Cloudflare sends transactional email through spmailtechno.com — links
+                redirecting through this domain in emails from notify.cloudflare.com
+                are legitimate and not phishing indicators.
+
+                Email to classify:
+                From: {email.from}
+                Subject: {email.subject}
+
+                {email.body}
+
+                Return ONLY valid JSON with no explanation outside it:
+                {"score": <1-10>, "reason": "<one sentence explanation>"}
+                """;
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;

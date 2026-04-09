@@ -58,7 +58,7 @@ class EmailActionServiceTest {
     void dryRunRecordsDecisionWithoutExecuting() throws Exception {
         DryRunProperties dryRunProps = new DryRunProperties(true, "admin@example.com", null, "0 7 * * *");
         EmailActionService service =
-                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService);
+                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService, mock(ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory.class));
 
         ParsedEmail email = testEmail("Suspicious offer");
         ScoreResult score = scoreResult(8.0, ScoreCategory.SPAM);
@@ -80,7 +80,7 @@ class EmailActionServiceTest {
     void resolvesSafeAction() {
         DryRunProperties dryRunProps = new DryRunProperties(false, null, null, null);
         EmailActionService service =
-                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService);
+                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService, mock(ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory.class));
 
         assertThat(service.resolveAction(ScoreCategory.SAFE)).isEqualTo("none");
     }
@@ -89,7 +89,7 @@ class EmailActionServiceTest {
     void resolvesReviewAction() {
         DryRunProperties dryRunProps = new DryRunProperties(false, null, null, null);
         EmailActionService service =
-                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService);
+                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService, mock(ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory.class));
 
         assertThat(service.resolveAction(ScoreCategory.REVIEW)).isEqualTo("move-to-review");
     }
@@ -98,7 +98,7 @@ class EmailActionServiceTest {
     void resolvesSpamAction() {
         DryRunProperties dryRunProps = new DryRunProperties(false, null, null, null);
         EmailActionService service =
-                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService);
+                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService, mock(ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory.class));
 
         assertThat(service.resolveAction(ScoreCategory.SPAM)).isEqualTo("move-to-junk");
     }
@@ -107,7 +107,7 @@ class EmailActionServiceTest {
     void auditCalledForLiveMode() throws Exception {
         DryRunProperties dryRunProps = new DryRunProperties(false, null, null, null);
         EmailActionService service =
-                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService);
+                new EmailActionService(spamFilterProperties, dryRunProps, subjectTagger, auditService, dryRunReportService, mock(ca.aksentiev.emailfilter.email.imap.ImapConnectionFactory.class));
 
         ParsedEmail email = testEmail("Clean email");
         ScoreResult score = scoreResult(2.0, ScoreCategory.SAFE);
