@@ -34,6 +34,8 @@ public class EmailParsingService {
 
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private static final Pattern WHITESPACE_COLLAPSE_PATTERN = Pattern.compile("\\s{2,}");
+    private static final int MAX_MIME_DEPTH = 10;
+    private static final int MAX_MIME_PARTS = 100;
 
     /**
      * Parses a raw {@link Message} into an {@link EmailMessage} record.
@@ -104,7 +106,7 @@ public class EmailParsingService {
     private BodyContent extractBody(Message message) throws MessagingException, IOException {
         Object content = message.getContent();
         if (content instanceof Multipart multipart) {
-            BodyContent body = extractBodyFromMultipart(multipart, message);
+            BodyContent body = extractBodyFromMultipart(multipart, message, 0, new int[]{0});
             if (body.plainText().isEmpty() && !body.html().isEmpty()) {
                 log.warn("Email has no text/plain part, falling back to HTML (Message-ID: {})",
                         extractHeader(message, "Message-ID"));
@@ -122,18 +124,32 @@ public class EmailParsingService {
         return new BodyContent(text, "");
     }
 
-    private BodyContent extractBodyFromMultipart(Multipart multipart, Message message)
+    private BodyContent extractBodyFromMultipart(Multipart multipart, Message message,
+                                                  int depth, int[] partCount)
             throws MessagingException, IOException {
+        if (depth > MAX_MIME_DEPTH) {
+            log.warn("MIME nesting depth exceeded ({}) for Message-ID: {}",
+                    MAX_MIME_DEPTH, extractHeader(message, "Message-ID"));
+            return new BodyContent("", "");
+        }
+
         String plainText = null;
         String htmlText = null;
 
         for (int i = 0; i < multipart.getCount(); i++) {
+            partCount[0]++;
+            if (partCount[0] > MAX_MIME_PARTS) {
+                log.warn("MIME part count exceeded ({}) for Message-ID: {}",
+                        MAX_MIME_PARTS, extractHeader(message, "Message-ID"));
+                break;
+            }
+
             Part part = multipart.getBodyPart(i);
             Object partContent = part.getContent();
             String contentType = part.getContentType();
 
             if (partContent instanceof Multipart nestedMultipart) {
-                BodyContent nested = extractBodyFromMultipart(nestedMultipart, message);
+                BodyContent nested = extractBodyFromMultipart(nestedMultipart, message, depth + 1, partCount);
                 if (plainText == null && !nested.plainText().isEmpty()) {
                     plainText = nested.plainText();
                 }
@@ -147,8 +163,6 @@ public class EmailParsingService {
             }
         }
 
-        // For the BodyContent returned from this level, keep plain and html separate.
-        // The caller (extractBody) will handle fallback from html to stripped plain text.
         return new BodyContent(plainText != null ? plainText : "", htmlText != null ? htmlText : "");
     }
 
