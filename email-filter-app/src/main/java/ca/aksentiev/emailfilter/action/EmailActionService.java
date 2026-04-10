@@ -134,9 +134,10 @@ public class EmailActionService {
         }
 
         Store store = null;
+        Folder inbox = null;
         try {
             store = connectionFactory.connect(account);
-            Folder inbox = store.getFolder(account.getFolders().inbox());
+            inbox = store.getFolder(account.getFolders().inbox());
             inbox.open(Folder.READ_WRITE);
 
             Message found = findByMessageId(inbox, email.messageId());
@@ -168,11 +169,14 @@ public class EmailActionService {
                 }
                 default -> log.warn("Unknown action '{}' for email '{}'", action, email.subject());
             }
-
-            inbox.close(false);
         } catch (MessagingException e) {
             log.error("Failed to execute action '{}' on email '{}': {}", action, email.subject(), e.getMessage(), e);
         } finally {
+            if (inbox != null && inbox.isOpen()) {
+                try { inbox.close(false); } catch (MessagingException e) {
+                    log.debug("Error closing IMAP folder: {}", e.getMessage());
+                }
+            }
             if (store != null) {
                 try { store.close(); } catch (MessagingException e) {
                     log.debug("Error closing IMAP store: {}", e.getMessage());

@@ -1,5 +1,6 @@
 package ca.aksentiev.emailfilter.filter.spam;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +41,7 @@ public class Whitelist {
         if (senderAddress == null || senderAddress.isBlank()) {
             return false;
         }
-        String lower = senderAddress.toLowerCase();
+        String lower = Normalizer.normalize(senderAddress, Normalizer.Form.NFKC).toLowerCase();
 
         if (addresses.contains(lower)) {
             return true;

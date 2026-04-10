@@ -1,7 +1,7 @@
 package ca.aksentiev.emailfilter.email;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +34,7 @@ public class EmailProcessingQueue {
     private final EmailActionService actionService;
     private final int consumerThreadCount;
     private final long shutdownTimeoutMs;
-    private final List<Thread> consumerThreads = new ArrayList<>();
+    private ExecutorService executorService;
     private volatile boolean running;
 
     public EmailProcessingQueue(ProcessingProperties properties, FilterChainDispatcher dispatcher, EmailActionService actionService) {
@@ -47,11 +47,13 @@ public class EmailProcessingQueue {
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
         running = true;
+        executorService = Executors.newFixedThreadPool(consumerThreadCount, r -> {
+            Thread t = new Thread(r);
+            t.setName("email-consumer-" + t.threadId());
+            return t;
+        });
         for (int i = 0; i < consumerThreadCount; i++) {
-            Thread thread = new Thread(this::consumeLoop, "email-consumer-" + i);
-            thread.setDaemon(true);
-            thread.start();
-            consumerThreads.add(thread);
+            executorService.submit(this::consumeLoop);
         }
         log.info("Started {} email processing consumer thread(s)", consumerThreadCount);
     }
@@ -78,15 +80,15 @@ public class EmailProcessingQueue {
     public void shutdown() {
         log.info("Shutting down email processing queue ({} items remaining)", queue.size());
         running = false;
-        for (Thread thread : consumerThreads) {
-            thread.interrupt();
-        }
-        for (Thread thread : consumerThreads) {
+        if (executorService != null) {
+            executorService.shutdownNow();
             try {
-                thread.join(shutdownTimeoutMs);
+                if (!executorService.awaitTermination(shutdownTimeoutMs, TimeUnit.MILLISECONDS)) {
+                    log.warn("Consumer threads did not terminate within {}ms", shutdownTimeoutMs);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.warn("Interrupted while waiting for consumer thread '{}' to finish", thread.getName());
+                log.warn("Interrupted while waiting for consumer threads to finish");
             }
         }
         log.info("Email processing queue shut down");

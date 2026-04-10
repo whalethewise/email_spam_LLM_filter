@@ -9,6 +9,7 @@ import ca.aksentiev.emailfilter.scan.ScanService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -70,6 +71,15 @@ public class ManagementController {
                 "accountsScanned", result.accountsScanned(),
                 "emailsEnqueued", result.emailsEnqueued(),
                 "failures", result.failures(),
+                "timestamp", System.currentTimeMillis()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleException(Exception e) {
+        log.error("Unhandled exception in management API: {}", e.getMessage(), e);
+        return ResponseEntity.internalServerError().body(Map.of(
+                "success", false,
+                "message", "Internal server error",
                 "timestamp", System.currentTimeMillis()));
     }
 }

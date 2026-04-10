@@ -48,9 +48,12 @@ public class PreProcessorService {
     private final ResourceLoader resourceLoader;
     private final ObjectMapper objectMapper;
 
-    private volatile Map<String, String> charSubstitutions = Map.of();
-    private volatile List<BrandEntry> brands = List.of();
-    private volatile Set<Integer> spoofCodepoints = Set.of();
+    private volatile PreProcessorData data = new PreProcessorData(Map.of(), List.of(), Set.of());
+
+    record PreProcessorData(
+            Map<String, String> charSubstitutions,
+            List<BrandEntry> brands,
+            Set<Integer> spoofCodepoints) {}
 
     public PreProcessorService(
             SpamFilterProperties properties, ResourceLoader resourceLoader, ObjectMapper objectMapper) {
@@ -69,9 +72,10 @@ public class PreProcessorService {
      * Logs warnings and uses empty defaults if files cannot be loaded.
      */
     public void reload() {
-        this.charSubstitutions = loadCharSubstitutions();
-        this.spoofCodepoints = buildSpoofCodepoints();
-        this.brands = loadBrands();
+        Map<String, String> subs = loadCharSubstitutions();
+        Set<Integer> spoof = buildSpoofCodepoints(subs);
+        List<BrandEntry> brandList = loadBrands();
+        this.data = new PreProcessorData(subs, brandList, spoof);
     }
 
     /**
@@ -81,14 +85,15 @@ public class PreProcessorService {
      * @return structured findings including normalized text, impersonations, URLs, and score
      */
     public PreProcessorFindings analyze(ParsedEmail email) {
+        PreProcessorData snapshot = this.data;
         boolean zeroWidth = detectZeroWidthChars(email.subject()) || detectZeroWidthChars(email.body());
-        boolean unicodeSpoofing = detectUnicodeSpoofing(email.subject()) || detectUnicodeSpoofing(email.body());
+        boolean unicodeSpoofing = detectUnicodeSpoofing(email.subject(), snapshot) || detectUnicodeSpoofing(email.body(), snapshot);
 
-        String normalizedSubject = normalize(email.subject());
-        String normalizedBody = normalize(email.body());
+        String normalizedSubject = normalize(email.subject(), snapshot);
+        String normalizedBody = normalize(email.body(), snapshot);
 
-        List<BrandImpersonation> impersonations = detectBrandImpersonations(email, normalizedSubject, normalizedBody);
-        List<SuspiciousUrl> suspiciousUrls = analyzeUrls(email.body());
+        List<BrandImpersonation> impersonations = detectBrandImpersonations(email, normalizedSubject, normalizedBody, snapshot);
+        List<SuspiciousUrl> suspiciousUrls = analyzeUrls(email.body(), snapshot);
 
         double score = calculateScore(impersonations, suspiciousUrls, zeroWidth, unicodeSpoofing);
 
@@ -97,13 +102,17 @@ public class PreProcessorService {
     }
 
     String normalize(String text) {
+        return normalize(text, this.data);
+    }
+
+    private String normalize(String text, PreProcessorData snapshot) {
         if (text == null || text.isEmpty()) {
             return "";
         }
         StringBuilder result = new StringBuilder(text.length());
         for (int i = 0; i < text.length(); i++) {
             String ch = String.valueOf(text.charAt(i));
-            String replacement = charSubstitutions.get(ch);
+            String replacement = snapshot.charSubstitutions().get(ch);
             result.append(replacement != null ? replacement : ch);
         }
         return result.toString();
@@ -117,20 +126,25 @@ public class PreProcessorService {
     }
 
     boolean detectUnicodeSpoofing(String text) {
+        return detectUnicodeSpoofing(text, this.data);
+    }
+
+    private boolean detectUnicodeSpoofing(String text, PreProcessorData snapshot) {
         if (text == null) {
             return false;
         }
-        return text.codePoints().anyMatch(spoofCodepoints::contains);
+        return text.codePoints().anyMatch(snapshot.spoofCodepoints()::contains);
     }
 
-    List<BrandImpersonation> detectBrandImpersonations(ParsedEmail email, String normalizedSubject, String normalizedBody) {
+    private List<BrandImpersonation> detectBrandImpersonations(ParsedEmail email, String normalizedSubject,
+                                                                  String normalizedBody, PreProcessorData snapshot) {
         String senderDomain = extractDomain(email.from());
         String combinedOriginal = (email.subject() + " " + email.body()).toLowerCase();
         String combinedNormalized = (normalizedSubject + " " + normalizedBody).toLowerCase();
 
         List<BrandImpersonation> impersonations = new ArrayList<>();
 
-        for (BrandEntry brand : brands) {
+        for (BrandEntry brand : snapshot.brands()) {
             String brandLower = brand.name().toLowerCase();
 
             if (brand.domains().contains(senderDomain)) {
@@ -150,6 +164,10 @@ public class PreProcessorService {
     }
 
     List<SuspiciousUrl> analyzeUrls(String body) {
+        return analyzeUrls(body, this.data);
+    }
+
+    private List<SuspiciousUrl> analyzeUrls(String body, PreProcessorData snapshot) {
         if (body == null || body.isEmpty()) {
             return List.of();
         }
@@ -158,12 +176,12 @@ public class PreProcessorService {
 
         while (matcher.find()) {
             String url = matcher.group();
-            checkUrl(url, suspicious);
+            checkUrl(url, suspicious, snapshot);
         }
         return Collections.unmodifiableList(suspicious);
     }
 
-    private void checkUrl(String url, List<SuspiciousUrl> results) {
+    private void checkUrl(String url, List<SuspiciousUrl> results, PreProcessorData snapshot) {
         if (IP_HOST_PATTERN.matcher(url).find()) {
             results.add(new SuspiciousUrl(url, "IP address URL"));
             return;
@@ -188,7 +206,7 @@ public class PreProcessorService {
             return;
         }
 
-        for (BrandEntry brand : brands) {
+        for (BrandEntry brand : snapshot.brands()) {
             String brandLower = brand.name().toLowerCase();
             if (hostLower.contains(brandLower) && !brand.domains().stream().anyMatch(hostLower::endsWith)) {
                 results.add(new SuspiciousUrl(url, "brand name '" + brand.name() + "' in non-legitimate domain"));
@@ -262,9 +280,9 @@ public class PreProcessorService {
         }
     }
 
-    private Set<Integer> buildSpoofCodepoints() {
+    private Set<Integer> buildSpoofCodepoints(Map<String, String> charSubs) {
         Set<Integer> codepoints = new java.util.HashSet<>();
-        for (String key : charSubstitutions.keySet()) {
+        for (String key : charSubs.keySet()) {
             if (key.length() == 1) {
                 int cp = key.codePointAt(0);
                 if (Character.UnicodeBlock.of(cp) == Character.UnicodeBlock.CYRILLIC

@@ -34,6 +34,7 @@ public class SpamAssassinClient {
             Pattern.compile("Spam:\\s*(True|False)\\s*;\\s*([\\d.]+)\\s*/\\s*[\\d.]+", Pattern.CASE_INSENSITIVE);
     private static final double MAX_RAW_SCORE = 20.0;
     private static final double MAX_NORMALIZED_SCORE = 10.0;
+    private static final int MAX_RESPONSE_BYTES = 64 * 1024;
 
     private final SpamAssassinProperties properties;
 
@@ -76,8 +77,14 @@ public class SpamAssassinClient {
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             StringBuilder response = new StringBuilder();
+            int totalBytes = 0;
             String line;
             while ((line = reader.readLine()) != null) {
+                totalBytes += line.length() + 1;
+                if (totalBytes > MAX_RESPONSE_BYTES) {
+                    log.warn("SpamAssassin response exceeded {} bytes, truncating", MAX_RESPONSE_BYTES);
+                    break;
+                }
                 response.append(line).append("\n");
             }
             return response.toString();

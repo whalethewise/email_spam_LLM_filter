@@ -21,11 +21,18 @@ public class LoggingAuditService implements AuditService {
         log.info(
                 "{}AUDIT: email='{}' from=<{}> score={} category={} action={} reason='{}'",
                 dryRun ? "[DRY-RUN] " : "",
-                email.subject(),
-                email.from(),
+                sanitize(email.subject()),
+                sanitize(email.from()),
                 score.finalScore(),
                 score.category(),
                 action,
-                score.llmReason());
+                sanitize(score.llmReason()));
+    }
+
+    private String sanitize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replaceAll("[\\r\\n]", " ");
     }
 }

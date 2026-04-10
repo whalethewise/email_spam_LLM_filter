@@ -2,6 +2,10 @@ package ca.aksentiev.emailfilter.email.imap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
 import ca.aksentiev.emailfilter.config.ImapProperties;
@@ -47,6 +51,12 @@ public class ImapIdleMonitor {
     private final EmailParsingService parsingService;
     private final EmailProcessingQueue processingQueue;
     private final List<Thread> idleThreads = new ArrayList<>();
+    private final ScheduledExecutorService keepAliveScheduler =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "imap-keepalive");
+                t.setDaemon(true);
+                return t;
+            });
     private volatile boolean running;
 
     public ImapIdleMonitor(
@@ -95,6 +105,7 @@ public class ImapIdleMonitor {
                 log.warn("Interrupted while waiting for IDLE thread '{}' to finish", thread.getName());
             }
         }
+        keepAliveScheduler.shutdownNow();
         log.info("IMAP IDLE monitor shut down");
     }
 
@@ -169,17 +180,9 @@ public class ImapIdleMonitor {
 
     private void idleLoop(IMAPFolder folder, AccountProperties.Account account) throws MessagingException {
         while (running && folder.isOpen()) {
-            // Schedule a thread to break IDLE before the 29-minute RFC timeout
-            Thread keepAlive = new Thread(() -> {
-                try {
-                    Thread.sleep(imapProperties.getIdleInterval());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
+            ScheduledFuture<?> keepAlive = keepAliveScheduler.schedule(() -> {
                 try {
                     if (folder.isOpen()) {
-                        // NOOP forces the server to return from IDLE
                         folder.doCommand(p -> {
                             p.simpleCommand("NOOP", null);
                             return null;
@@ -188,14 +191,12 @@ public class ImapIdleMonitor {
                 } catch (MessagingException e) {
                     log.debug("Keep-alive NOOP failed for account '{}': {}", account.getName(), e.getMessage());
                 }
-            }, "imap-keepalive-" + account.getName());
-            keepAlive.setDaemon(true);
-            keepAlive.start();
+            }, imapProperties.getIdleInterval(), TimeUnit.MILLISECONDS);
 
             try {
                 folder.idle();
             } finally {
-                keepAlive.interrupt();
+                keepAlive.cancel(false);
             }
         }
     }
