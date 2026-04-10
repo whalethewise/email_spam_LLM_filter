@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import java.time.Instant;
 
+import ca.aksentiev.emailfilter.config.SpamFilterProperties;
 import ca.aksentiev.emailfilter.email.parser.ParsedEmail;
 import ca.aksentiev.emailfilter.preprocessor.BrandImpersonation;
 import ca.aksentiev.emailfilter.preprocessor.PreProcessorFindings;
@@ -31,7 +32,9 @@ public class LlmScoringService {
 
     private static final Logger log = LoggerFactory.getLogger(LlmScoringService.class);
 
-    private static final int MAX_BODY_LENGTH = 2000;
+    private static final int DEFAULT_MAX_BODY_LENGTH = 2000;
+    private static final int DEFAULT_NUM_PREDICT = 256;
+    private static final double DEFAULT_TEMPERATURE = 0.0;
 
     static final String SYSTEM_PROMPT =
             """
@@ -103,15 +106,23 @@ public class LlmScoringService {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final int maxBodyLength;
+    private final int numPredict;
+    private final double temperature;
 
-    public LlmScoringService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper) {
+    public LlmScoringService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper,
+                              SpamFilterProperties spamFilterProperties) {
         this.chatClient = chatClientBuilder.build();
         this.objectMapper = objectMapper;
+        SpamFilterProperties.Llm llm = spamFilterProperties.getLlm();
+        this.maxBodyLength = llm != null ? llm.maxBodyLength() : DEFAULT_MAX_BODY_LENGTH;
+        this.numPredict = llm != null ? llm.numPredict() : DEFAULT_NUM_PREDICT;
+        this.temperature = llm != null ? llm.temperature() : DEFAULT_TEMPERATURE;
     }
 
     @PostConstruct
     void warmup() {
-        log.info("******************* --> LLM warmup call starting");
+        log.info("LLM warmup call starting");
         long start = System.currentTimeMillis();
 
         ParsedEmail fakeEmail = new ParsedEmail(
@@ -125,7 +136,7 @@ public class LlmScoringService {
         LlmResponse result = score(fakeEmail, fakeFindings);
 
         long elapsed = System.currentTimeMillis() - start;
-        log.info("================ LLM warmup complete in {}ms: score={} available={} reason='{}'",
+        log.info("LLM warmup complete in {}ms: score={} available={} reason='{}'",
                 elapsed, result.score(), result.available(), result.reason());
     }
 
@@ -140,13 +151,13 @@ public class LlmScoringService {
         String userPrompt = buildUserPrompt(email, findings);
 
         OllamaChatOptions options = OllamaChatOptions.builder()
-                .numPredict(256)
-                .temperature(0.0)
+                .numPredict(numPredict)
+                .temperature(temperature)
                 .disableThinking()
                 .build();
 
-        log.info("LLM request: prompt length={}, system length={}, options=numPredict=256,temp=0.3",
-                userPrompt.length(), SYSTEM_PROMPT.length());
+        log.info("LLM request: prompt length={}, system length={}, numPredict={}, temp={}",
+                userPrompt.length(), SYSTEM_PROMPT.length(), numPredict, temperature);
 
         try {
             String response = chatClient
@@ -157,7 +168,7 @@ public class LlmScoringService {
                     .call()
                     .content();
 
-            log.info("================ LLM raw response (length={}): {}", response != null ? response.length() : 0, response);
+            log.info("LLM raw response (length={}): {}", response != null ? response.length() : 0, response);
             return parseResponse(response);
         } catch (Exception e) {
             log.warn("Ollama unavailable — {}", e.getMessage());
@@ -274,9 +285,9 @@ public class LlmScoringService {
         if (body == null) {
             return "";
         }
-        if (body.length() <= MAX_BODY_LENGTH) {
+        if (body.length() <= maxBodyLength) {
             return body;
         }
-        return body.substring(0, MAX_BODY_LENGTH) + "... [truncated]";
+        return body.substring(0, maxBodyLength) + "... [truncated]";
     }
 }

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import ca.aksentiev.emailfilter.config.SpamFilterProperties;
 import ca.aksentiev.emailfilter.email.parser.ParsedEmail;
 import ca.aksentiev.emailfilter.preprocessor.BrandImpersonation;
 import ca.aksentiev.emailfilter.preprocessor.PreProcessorFindings;
@@ -36,7 +37,10 @@ class LlmScoringServiceTest {
     @BeforeEach
     void setUp() {
         when(chatClientBuilder.build()).thenReturn(chatClient);
-        service = new LlmScoringService(chatClientBuilder, objectMapper);
+        SpamFilterProperties props = new SpamFilterProperties(
+                true, "mistral", 8.0, null, null, null,
+                null, null, null, null, null);
+        service = new LlmScoringService(chatClientBuilder, objectMapper, props);
     }
 
     @Test

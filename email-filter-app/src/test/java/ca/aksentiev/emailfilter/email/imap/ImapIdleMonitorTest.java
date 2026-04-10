@@ -1,16 +1,19 @@
 package ca.aksentiev.emailfilter.email.imap;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import ca.aksentiev.emailfilter.config.AccountProperties;
 import ca.aksentiev.emailfilter.config.ImapProperties;
 import ca.aksentiev.emailfilter.email.EmailProcessingQueue;
 import ca.aksentiev.emailfilter.email.parser.EmailParsingService;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,18 +70,14 @@ class ImapIdleMonitorTest {
 
         monitor.start();
 
-        // Give threads a moment to start (they'll fail to connect and enter backoff)
-        Thread.sleep(200);
-
-        // Use unique names to avoid collisions with the Spring context test's threads
-        long idleThreadCount = Thread.getAllStackTraces().keySet().stream()
-                .filter(t -> t.getName().equals("imap-idle-unit-acct-a")
-                        || t.getName().equals("imap-idle-unit-acct-b"))
-                .count();
-
         try {
-            // Should have created 2 threads (one per account)
-            org.assertj.core.api.Assertions.assertThat(idleThreadCount).isEqualTo(2);
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+                long idleThreadCount = Thread.getAllStackTraces().keySet().stream()
+                        .filter(t -> t.getName().equals("imap-idle-unit-acct-a")
+                                || t.getName().equals("imap-idle-unit-acct-b"))
+                        .count();
+                assertThat(idleThreadCount).isEqualTo(2);
+            });
         } finally {
             monitor.shutdown();
         }
@@ -94,16 +93,22 @@ class ImapIdleMonitorTest {
         ImapIdleMonitor monitor = new ImapIdleMonitor(props, imapProperties, connectionFactory, parsingService, processingQueue);
 
         monitor.start();
-        Thread.sleep(200);
+
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+            long count = Thread.getAllStackTraces().keySet().stream()
+                    .filter(t -> t.getName().equals("imap-idle-test"))
+                    .count();
+            assertThat(count).isEqualTo(1);
+        });
 
         monitor.shutdown();
-        Thread.sleep(200);
 
-        long idleThreadCount = Thread.getAllStackTraces().keySet().stream()
-                .filter(t -> t.getName().equals("imap-idle-test"))
-                .filter(Thread::isAlive)
-                .count();
-
-        org.assertj.core.api.Assertions.assertThat(idleThreadCount).isZero();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+            long count = Thread.getAllStackTraces().keySet().stream()
+                    .filter(t -> t.getName().equals("imap-idle-test"))
+                    .filter(Thread::isAlive)
+                    .count();
+            assertThat(count).isZero();
+        });
     }
 }

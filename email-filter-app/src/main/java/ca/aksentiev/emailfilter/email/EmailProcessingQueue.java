@@ -29,7 +29,7 @@ public class EmailProcessingQueue {
 
     private static final Logger log = LoggerFactory.getLogger(EmailProcessingQueue.class);
 
-    private final LinkedBlockingQueue<QueuedEmail> queue = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<QueuedEmail> queue;
     private final FilterChainDispatcher dispatcher;
     private final EmailActionService actionService;
     private final int consumerThreadCount;
@@ -38,6 +38,7 @@ public class EmailProcessingQueue {
     private volatile boolean running;
 
     public EmailProcessingQueue(ProcessingProperties properties, FilterChainDispatcher dispatcher, EmailActionService actionService) {
+        this.queue = new LinkedBlockingQueue<>(properties.queueCapacity());
         this.consumerThreadCount = properties.consumerThreads();
         this.shutdownTimeoutMs = properties.shutdownTimeoutMs();
         this.dispatcher = dispatcher;
@@ -64,7 +65,11 @@ public class EmailProcessingQueue {
      * @param item the email + account context to process
      */
     public void enqueue(QueuedEmail item) {
-        queue.add(item);
+        if (!queue.offer(item)) {
+            log.warn("Processing queue is full (capacity: {}), dropping email '{}' from account '{}'",
+                    queue.size() + queue.remainingCapacity(), item.message().subject(), item.account().getName());
+            return;
+        }
         log.debug("Enqueued email '{}' from account '{}' (queue size: {})",
                 item.message().subject(), item.account().getName(), queue.size());
     }
@@ -100,7 +105,7 @@ public class EmailProcessingQueue {
             try {
                 QueuedEmail item = queue.poll(1, TimeUnit.SECONDS);
                 if (item != null) {
-                    log.info("****************** Picked up email '{}' from QUEUE (remaining={})", item.message().subject(), queue.size());
+                    log.info("Picked up email '{}' from queue (remaining={})", item.message().subject(), queue.size());
                     processEmail(item);
                 }
             } catch (InterruptedException e) {

@@ -8,37 +8,37 @@ class ProcessingPropertiesTest {
 
     @Test
     void usesProvidedThreadCount() {
-        ProcessingProperties props = new ProcessingProperties(4, 5000);
+        ProcessingProperties props = new ProcessingProperties(4, 5000, 1000);
         assertThat(props.consumerThreads()).isEqualTo(4);
     }
 
     @Test
     void zeroThreadCountDefaultsToOne() {
-        ProcessingProperties props = new ProcessingProperties(0, 5000);
+        ProcessingProperties props = new ProcessingProperties(0, 5000, 1000);
         assertThat(props.consumerThreads()).isEqualTo(1);
     }
 
     @Test
     void negativeThreadCountDefaultsToOne() {
-        ProcessingProperties props = new ProcessingProperties(-3, 5000);
+        ProcessingProperties props = new ProcessingProperties(-3, 5000, 1000);
         assertThat(props.consumerThreads()).isEqualTo(1);
     }
 
     @Test
     void usesProvidedShutdownTimeout() {
-        ProcessingProperties props = new ProcessingProperties(1, 10000);
+        ProcessingProperties props = new ProcessingProperties(1, 10000, 1000);
         assertThat(props.shutdownTimeoutMs()).isEqualTo(10000);
     }
 
     @Test
     void zeroShutdownTimeoutDefaultsTo5000() {
-        ProcessingProperties props = new ProcessingProperties(1, 0);
+        ProcessingProperties props = new ProcessingProperties(1, 0, 1000);
         assertThat(props.shutdownTimeoutMs()).isEqualTo(5000);
     }
 
     @Test
     void negativeShutdownTimeoutDefaultsTo5000() {
-        ProcessingProperties props = new ProcessingProperties(1, -1);
+        ProcessingProperties props = new ProcessingProperties(1, -1, 1000);
         assertThat(props.shutdownTimeoutMs()).isEqualTo(5000);
     }
 }

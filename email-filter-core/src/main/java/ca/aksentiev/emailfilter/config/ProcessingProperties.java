@@ -7,9 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param consumerThreads   number of threads consuming from the processing queue (default 1)
  * @param shutdownTimeoutMs time in milliseconds to wait for consumer threads during shutdown (default 5000)
+ * @param queueCapacity     maximum number of emails that can be queued (default 1000)
  */
 @ConfigurationProperties(prefix = "emailfilter.processing")
-public record ProcessingProperties(int consumerThreads, long shutdownTimeoutMs) {
+public record ProcessingProperties(int consumerThreads, long shutdownTimeoutMs, int queueCapacity) {
 
     public ProcessingProperties {
         if (consumerThreads <= 0) {
@@ -17,6 +18,9 @@ public record ProcessingProperties(int consumerThreads, long shutdownTimeoutMs) 
         }
         if (shutdownTimeoutMs <= 0) {
             shutdownTimeoutMs = 5000;
+        }
+        if (queueCapacity <= 0) {
+            queueCapacity = 1000;
         }
     }
 }

@@ -45,7 +45,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "All filters passed");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000, 1000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
         queue.start();
 
         queue.enqueue(queuedEmail("Test Subject"));
@@ -64,7 +64,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "All filters passed");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(3, 5000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
+        queue = new EmailProcessingQueue(new ProcessingProperties(3, 5000, 1000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
         queue.start();
 
         for (int i = 0; i < emailCount; i++) {
@@ -79,7 +79,7 @@ class EmailProcessingQueueTest {
         FilterChainDispatcher dispatcher = mock(FilterChainDispatcher.class);
         ca.aksentiev.emailfilter.action.EmailActionService actionService = mock(ca.aksentiev.emailfilter.action.EmailActionService.class);
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher, actionService);
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000, 1000), dispatcher, actionService);
         // Don't start consumers — just test the queue size
         assertThat(queue.size()).isZero();
 
@@ -102,7 +102,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000, 1000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
         queue.start();
 
         queue.enqueue(queuedEmail("Will fail"));
@@ -122,7 +122,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(2, 5000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
+        queue = new EmailProcessingQueue(new ProcessingProperties(2, 5000, 1000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
         queue.start();
 
         queue.enqueue(queuedEmail("Trigger start"));
@@ -144,7 +144,7 @@ class EmailProcessingQueueTest {
             return FilterResult.processed(0.0, "leave", "pass");
         });
 
-        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
+        queue = new EmailProcessingQueue(new ProcessingProperties(1, 5000, 1000), dispatcher, mock(ca.aksentiev.emailfilter.action.EmailActionService.class));
         queue.start();
 
         AccountProperties.Account account = testAccount("work-account");

@@ -22,11 +22,12 @@ public class SpamFilterProperties {
     private Thresholds thresholds;
     private Actions actions;
     private WhitelistConfig whitelist;
+    private Llm llm;
 
     public SpamFilterProperties(boolean enabled, String ollamaModel, double skipLlmAboveScore,
                                 String brandsPath, String charSubstitutionsPath, String whitelistPath,
                                 Weights weights, Thresholds thresholds, Actions actions,
-                                WhitelistConfig whitelist) {
+                                WhitelistConfig whitelist, Llm llm) {
         this.enabled = enabled;
         this.ollamaModel = ollamaModel;
         this.skipLlmAboveScore = skipLlmAboveScore;
@@ -37,6 +38,7 @@ public class SpamFilterProperties {
         this.thresholds = thresholds;
         this.actions = actions;
         this.whitelist = whitelist != null ? whitelist : new WhitelistConfig(List.of(), List.of(), List.of());
+        this.llm = llm != null ? llm : new Llm(2000, 256, 0.0);
     }
 
     public boolean isEnabled() {
@@ -79,6 +81,10 @@ public class SpamFilterProperties {
         return whitelist;
     }
 
+    public Llm getLlm() {
+        return llm;
+    }
+
     public record Weights(double preprocessor, double spamassassin, double llm) {}
 
     public record Thresholds(int safeMax, int reviewMax) {}
@@ -93,4 +99,6 @@ public class SpamFilterProperties {
      * @param patterns  wildcard patterns (e.g. "*@*.gov.ca")
      */
     public record WhitelistConfig(List<String> addresses, List<String> domains, List<String> patterns) {}
+
+    public record Llm(int maxBodyLength, int numPredict, double temperature) {}
 }
