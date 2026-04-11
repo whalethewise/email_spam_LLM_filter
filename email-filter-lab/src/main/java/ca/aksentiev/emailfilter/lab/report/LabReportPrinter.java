@@ -4,6 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,9 +81,17 @@ public class LabReportPrinter {
         if (filePath == null || filePath.isBlank()) {
             return;
         }
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
-            writer.print(report);
-            log.info("Report written to: {}", filePath);
+        try {
+            Path resolved = Path.of(filePath).toAbsolutePath().normalize();
+            Path cwd = Path.of("").toAbsolutePath().normalize();
+            if (!resolved.startsWith(cwd)) {
+                log.error("Report path resolves outside working directory: {}", resolved);
+                return;
+            }
+            try (PrintWriter writer = new PrintWriter(new FileWriter(resolved.toFile()))) {
+                writer.print(report);
+                log.info("Report written to: {}", resolved);
+            }
         } catch (IOException e) {
             log.error("Failed to write report to '{}': {}", filePath, e.getMessage());
         }

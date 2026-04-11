@@ -233,9 +233,14 @@ public class LlmScoringService {
         }
     }
 
+    private static final int MAX_JSON_EXTRACT_LENGTH = 10_000;
+
     private String extractJson(String response) {
+        // Limit input size to prevent excessive processing
+        String bounded = response.length() > MAX_JSON_EXTRACT_LENGTH
+                ? response.substring(0, MAX_JSON_EXTRACT_LENGTH) : response;
         // Strip markdown code fences (```json ... ``` or ``` ... ```)
-        String stripped = response.replaceAll("(?s)```(?:json)?\\s*", "").replaceAll("(?s)```", "").trim();
+        String stripped = bounded.replaceAll("(?s)```(?:json)?\\s*", "").replaceAll("(?s)```", "").trim();
 
         // Find the first balanced {...} block
         int start = stripped.indexOf('{');

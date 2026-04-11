@@ -217,12 +217,14 @@ public class EmailActionService {
         }
         targetFolder.open(Folder.READ_WRITE);
 
-        targetFolder.appendMessages(new Message[] {modified});
-        original.setFlag(Flags.Flag.DELETED, true);
-        sourceFolder.expunge();
-
-        if (targetFolder.isOpen()) {
-            targetFolder.close(false);
+        try {
+            targetFolder.appendMessages(new Message[] {modified});
+            original.setFlag(Flags.Flag.DELETED, true);
+            sourceFolder.expunge();
+        } finally {
+            if (targetFolder.isOpen()) {
+                targetFolder.close(false);
+            }
         }
     }
 

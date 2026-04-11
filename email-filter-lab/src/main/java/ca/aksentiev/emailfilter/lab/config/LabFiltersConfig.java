@@ -2,7 +2,9 @@ package ca.aksentiev.emailfilter.lab.config;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,10 +72,18 @@ public class LabFiltersConfig {
             file = new File("email-filter-lab/staging-filters.yml");
         }
         if (file.exists()) {
-            log.info("Loading staging-filters.yml from: {}", file.getAbsolutePath());
-            try (FileInputStream fis = new FileInputStream(file)) {
-                return yaml.load(fis);
-            } catch (Exception e) {
+            try {
+                Path realPath = file.toPath().toRealPath();
+                Path cwd = Path.of("").toAbsolutePath().toRealPath();
+                if (!realPath.startsWith(cwd)) {
+                    log.error("staging-filters.yml resolves outside working directory: {}", realPath);
+                    return null;
+                }
+                log.info("Loading staging-filters.yml from: {}", realPath);
+                try (FileInputStream fis = new FileInputStream(realPath.toFile())) {
+                    return yaml.load(fis);
+                }
+            } catch (IOException e) {
                 log.error("Failed to load staging-filters.yml from disk: {}", e.getMessage());
             }
         }

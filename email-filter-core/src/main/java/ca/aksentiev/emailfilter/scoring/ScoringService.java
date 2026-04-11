@@ -75,6 +75,11 @@ public class ScoringService {
             totalWeight += layer.weight();
         }
 
+        if (totalWeight <= 0.0) {
+            log.warn("All scoring weights are zero — defaulting to SAFE (score 1)");
+            return 1.0;
+        }
+
         double weightedSum = 0.0;
         for (LayerScore layer : available) {
             double redistributedWeight = layer.weight() / totalWeight;

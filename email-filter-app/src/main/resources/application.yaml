@@ -13,7 +13,7 @@ spring:
   # --- Spring AI / Ollama configuration ---
   ai:
     ollama:
-      base-url: http://192.168.10.180:11434
+      base-url: ${OLLAMA_URL:http://192.168.10.180:11434}
       chat:
         options:
           model: qwen3.5:9b-nothink
@@ -43,8 +43,8 @@ emailfilter:
 
   # --- SpamAssassin daemon (Layer 2 — header/Bayesian analysis) ---
   spamassassin:
-    host: 192.168.10.180
-    port: 783
+    host: ${SA_HOST:192.168.10.180}
+    port: ${SA_PORT:783}
     # Connection and read timeout in milliseconds
     timeout: 5000
 
@@ -134,3 +134,15 @@ emailfilter:
   reload:
     port: 8081
     api-key: ${RELOAD_API_KEY}
+
+# ---------------------------------------------------------------------------
+# Actuator — restrict exposed endpoints
+# ---------------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    env:
+      enabled: false
