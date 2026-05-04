@@ -27,9 +27,9 @@ services:
       DRY_RUN_REPORT_DIR: /var/log/email-filter
     ports:
       # Main application port
-      - "8080:8080"
+      - "8090:8080"
       # Management / reload API (restrict to internal network in production)
-      - "8081:8081"
+      - "8091:8081"
     volumes:
       # External configuration — edit these without rebuilding the image.
       # Paths inside the container match what application.yml expects.
@@ -38,6 +38,7 @@ services:
       - ./config/brands.json:/app/config/brands.json:ro
       - ./config/char_substitutions.json:/app/config/char_substitutions.json:ro
       - ./config/whitelist.yml:/app/config/whitelist.yml:ro
+      - ./config/prompt.txt:/app/config/prompt.txt:ro
       # Dry-run report output directory
       - ./data/reports:/var/log/email-filter
     networks:
