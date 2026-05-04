@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.ResourceLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,9 +40,10 @@ class LlmScoringServiceTest {
     void setUp() {
         when(chatClientBuilder.build()).thenReturn(chatClient);
         SpamFilterProperties props = new SpamFilterProperties(
-                true, "mistral", 8.0, null, null, null,
+                true, "mistral", 8.0, null, null, null, null,
                 null, null, null, null, null);
-        service = new LlmScoringService(chatClientBuilder, objectMapper, props);
+        ResourceLoader resourceLoader = new DefaultResourceLoader();
+        service = new LlmScoringService(chatClientBuilder, objectMapper, props, resourceLoader);
     }
 
     @Test

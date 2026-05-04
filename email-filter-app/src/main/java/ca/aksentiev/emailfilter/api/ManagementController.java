@@ -3,6 +3,7 @@ package ca.aksentiev.emailfilter.api;
 import java.util.Map;
 
 import ca.aksentiev.emailfilter.filter.spam.SpamFilter;
+import ca.aksentiev.emailfilter.llm.LlmScoringService;
 import ca.aksentiev.emailfilter.preprocessor.PreProcessorService;
 import ca.aksentiev.emailfilter.scan.ScanResult;
 import ca.aksentiev.emailfilter.scan.ScanService;
@@ -27,25 +28,30 @@ public class ManagementController {
     private final ScanService scanService;
     private final PreProcessorService preProcessorService;
     private final SpamFilter spamFilter;
+    private final LlmScoringService llmScoringService;
 
-    public ManagementController(ScanService scanService, PreProcessorService preProcessorService, SpamFilter spamFilter) {
+    public ManagementController(ScanService scanService, PreProcessorService preProcessorService,
+                                 SpamFilter spamFilter, LlmScoringService llmScoringService) {
         this.scanService = scanService;
         this.preProcessorService = preProcessorService;
         this.spamFilter = spamFilter;
+        this.llmScoringService = llmScoringService;
     }
 
     /**
-     * Reloads configuration files: brands.json, char_substitutions.json, whitelist.yml.
+     * Reloads configuration files: brands.json, char_substitutions.json, whitelist.yml,
+     * and the LLM system prompt.
      */
     @PostMapping("/reload")
     public ResponseEntity<Map<String, Object>> reload() {
         log.info("Reload requested via management API");
         preProcessorService.reload();
         spamFilter.reloadWhitelist();
-        log.info("Reload complete: preprocessor data + whitelist refreshed");
+        llmScoringService.reload();
+        log.info("Reload complete: preprocessor data + whitelist + LLM prompt refreshed");
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Reload complete: preprocessor data + whitelist refreshed",
+                "message", "Reload complete: preprocessor data + whitelist + LLM prompt refreshed",
                 "timestamp", System.currentTimeMillis()));
     }
 

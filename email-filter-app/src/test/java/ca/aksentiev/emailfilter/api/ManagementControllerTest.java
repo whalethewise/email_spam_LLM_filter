@@ -1,6 +1,7 @@
 package ca.aksentiev.emailfilter.api;
 
 import ca.aksentiev.emailfilter.filter.spam.SpamFilter;
+import ca.aksentiev.emailfilter.llm.LlmScoringService;
 import ca.aksentiev.emailfilter.preprocessor.PreProcessorService;
 import ca.aksentiev.emailfilter.scan.ScanResult;
 import ca.aksentiev.emailfilter.scan.ScanService;
@@ -27,6 +28,9 @@ class ManagementControllerTest {
 
     @Mock
     private SpamFilter spamFilter;
+
+    @Mock
+    private LlmScoringService llmScoringService;
 
     @InjectMocks
     private ManagementController controller;

@@ -18,6 +18,7 @@ public class SpamFilterProperties {
     private String brandsPath;
     private String charSubstitutionsPath;
     private String whitelistPath;
+    private String llmPromptPath;
     private Weights weights;
     private Thresholds thresholds;
     private Actions actions;
@@ -26,6 +27,7 @@ public class SpamFilterProperties {
 
     public SpamFilterProperties(boolean enabled, String ollamaModel, double skipLlmAboveScore,
                                 String brandsPath, String charSubstitutionsPath, String whitelistPath,
+                                String llmPromptPath,
                                 Weights weights, Thresholds thresholds, Actions actions,
                                 WhitelistConfig whitelist, Llm llm) {
         this.enabled = enabled;
@@ -34,6 +36,7 @@ public class SpamFilterProperties {
         this.brandsPath = brandsPath;
         this.charSubstitutionsPath = charSubstitutionsPath;
         this.whitelistPath = whitelistPath;
+        this.llmPromptPath = llmPromptPath;
         this.weights = weights;
         this.thresholds = thresholds;
         this.actions = actions;
@@ -63,6 +66,10 @@ public class SpamFilterProperties {
 
     public String getWhitelistPath() {
         return whitelistPath;
+    }
+
+    public String getLlmPromptPath() {
+        return llmPromptPath;
     }
 
     public Weights getWeights() {

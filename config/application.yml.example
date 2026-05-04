@@ -92,6 +92,8 @@ emailfilter:
     brands-path: file:/app/config/brands.json
     char-substitutions-path: file:/app/config/char_substitutions.json
     whitelist-path: file:/app/config/whitelist.yml
+    # LLM system prompt — re-read on POST /api/reload
+    llm-prompt-path: file:/app/config/prompt.txt
     # Scoring layer weights — must sum to 1.0.
     # If a layer is unavailable its weight is redistributed to the remaining layers.
     weights:
