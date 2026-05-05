@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 import ca.aksentiev.emailfilter.filter.EmailMessage;
-import ca.aksentiev.emailfilter.lab.engine.ActionType;
 import ca.aksentiev.emailfilter.lab.engine.FilterDefinition;
 import ca.aksentiev.emailfilter.lab.engine.FilterResult;
 import ca.aksentiev.emailfilter.lab.engine.FilterType;
+import ca.aksentiev.emailfilter.lab.engine.ResolvedAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -101,7 +101,7 @@ public class LabReportPrinter {
                                    EmailMessage email, FilterResult result) {
         String subject = truncate(email.subject(), 60);
 
-        if (result.action() == ActionType.LEAVE) {
+        if (result.isLeave()) {
             String reason = result.reason() != null ? result.reason() : "";
             out.printf("%s  Result : LEAVE%s%n", index, reason.isEmpty() ? "" : " (" + reason + ")");
             out.printf("         From   : %s%n", email.from());
@@ -114,7 +114,7 @@ public class LabReportPrinter {
                 String category = result.score() >= 8 ? "SPAM      " :
                                   result.score() >= 4 ? "BORDERLINE" : "LEGITIMATE";
                 out.printf("%s  Score:  %d  [%s]%n", index, result.score(), category);
-                out.printf("         Action : %s%n", formatAction(result));
+                printActionLines(out, result);
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
                 if (result.reason() != null) {
@@ -124,7 +124,7 @@ public class LabReportPrinter {
             case EXTRACTION -> {
                 boolean isNone = result.llmResponse() == null;
                 out.printf("%s  Result : %s%n", index, isNone ? "NONE" : "RESPONSE");
-                out.printf("         Action : %s%n", formatAction(result));
+                printActionLines(out, result);
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
                 if (!isNone && result.llmResponse() != null) {
@@ -133,28 +133,40 @@ public class LabReportPrinter {
             }
             case LOGISTICS -> {
                 out.printf("%s  Rule   : %s%n", index, result.matchedRule() != null ? result.matchedRule() : "none");
-                out.printf("         Action : %s%n", formatAction(result));
+                printActionLines(out, result);
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
             }
         }
     }
 
-    private String formatAction(FilterResult result) {
-        return switch (result.action()) {
+    private void printActionLines(PrintWriter out, FilterResult result) {
+        List<ResolvedAction> actions = result.actions();
+        if (actions.isEmpty()) {
+            out.printf("         Action : LEAVE%n");
+            return;
+        }
+        for (int i = 0; i < actions.size(); i++) {
+            String label = i == 0 ? "Action " : "       ";
+            out.printf("         %s: %s%n", label, formatAction(actions.get(i)));
+        }
+    }
+
+    private String formatAction(ResolvedAction action) {
+        return switch (action.type()) {
             case LEAVE -> "LEAVE";
             case FLAG -> "FLAG";
             case MOVE_TO_JUNK -> "MOVE-TO-JUNK";
-            case MOVE_TO_FOLDER -> "MOVE-TO-FOLDER → " + result.targetFolder();
+            case MOVE_TO_FOLDER -> "MOVE-TO-FOLDER → " + action.targetFolder();
             case DELETE -> "DELETE";
-            case SEND_EMAIL -> "SEND-EMAIL → " + result.emailTo();
+            case SEND_EMAIL -> "SEND-EMAIL → " + action.emailTo();
         };
     }
 
     private void printScoreDistribution(PrintWriter out, List<FilterResult> results) {
         int low = 0, mid = 0, high = 0, errors = 0;
         for (FilterResult r : results) {
-            if (r.action() == ActionType.LEAVE && "whitelisted".equals(r.reason())) {
+            if (r.isLeave() && "whitelisted".equals(r.reason())) {
                 continue;
             }
             if (r.score() >= 1 && r.score() <= 3) low++;
@@ -201,15 +213,21 @@ public class LabReportPrinter {
         counts.put("flag", 0);
         counts.put("delete", 0);
         for (FilterResult r : results) {
-            String key = switch (r.action()) {
-                case LEAVE -> "leave";
-                case MOVE_TO_JUNK -> "move-to-junk";
-                case MOVE_TO_FOLDER -> "move-to-folder";
-                case SEND_EMAIL -> "send-email";
-                case FLAG -> "flag";
-                case DELETE -> "delete";
-            };
-            counts.merge(key, 1, Integer::sum);
+            if (r.actions().isEmpty()) {
+                counts.merge("leave", 1, Integer::sum);
+                continue;
+            }
+            for (ResolvedAction action : r.actions()) {
+                String key = switch (action.type()) {
+                    case LEAVE -> "leave";
+                    case MOVE_TO_JUNK -> "move-to-junk";
+                    case MOVE_TO_FOLDER -> "move-to-folder";
+                    case SEND_EMAIL -> "send-email";
+                    case FLAG -> "flag";
+                    case DELETE -> "delete";
+                };
+                counts.merge(key, 1, Integer::sum);
+            }
         }
         return counts;
     }

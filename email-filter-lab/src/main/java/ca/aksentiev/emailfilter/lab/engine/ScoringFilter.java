@@ -197,11 +197,10 @@ public class ScoringFilter {
 
         String reason = llmReason.isEmpty() ? tag.toString() : llmReason;
 
-        return new FilterResult(
-                actionType,
-                actionType == ActionType.MOVE_TO_FOLDER ? "LLM-Spam-Review" : null,
-                null, null, null,
-                finalScore, reason, null, null);
+        ResolvedAction resolved = actionType == ActionType.MOVE_TO_FOLDER
+                ? ResolvedAction.moveToFolder("LLM-Spam-Review")
+                : ResolvedAction.of(actionType);
+        return new FilterResult(List.of(resolved), finalScore, reason, null, null);
     }
 
     private ActionType mapActionName(String name) {

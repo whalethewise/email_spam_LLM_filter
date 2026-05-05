@@ -1,7 +1,5 @@
 package ca.aksentiev.emailfilter.lab.engine;
 
-import java.util.List;
-
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;
 import jakarta.mail.Message;
@@ -12,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Executes IMAP actions described by filter results.
- * In dry-run mode, logs actions without executing them.
+ * Executes a single resolved action against an IMAP message.
+ * In dry-run mode, logs the action without performing it.
  */
 @Component
 public class ActionExecutor {
@@ -26,15 +24,15 @@ public class ActionExecutor {
         this.smtpEmailSender = smtpEmailSender;
     }
 
-    public void execute(FilterResult result, Message message, Store store, boolean dryRun) {
-        if (result.action() == ActionType.LEAVE) {
+    public void execute(ResolvedAction action, Message message, Store store, boolean dryRun) {
+        if (action == null || action.type() == ActionType.LEAVE) {
             return;
         }
 
         String prefix = dryRun ? "[DRY-RUN]" : "[LIVE]";
 
         try {
-            switch (result.action()) {
+            switch (action.type()) {
                 case FLAG -> {
                     log.info("{} FLAG message", prefix);
                     if (!dryRun) {
@@ -48,10 +46,9 @@ public class ActionExecutor {
                     }
                 }
                 case MOVE_TO_FOLDER -> {
-                    String folder = result.targetFolder();
-                    log.info("{} MOVE to '{}'", prefix, folder);
+                    log.info("{} MOVE to '{}'", prefix, action.targetFolder());
                     if (!dryRun) {
-                        moveToFolder(message, store, folder);
+                        moveToFolder(message, store, action.targetFolder());
                     }
                 }
                 case DELETE -> {
@@ -62,65 +59,15 @@ public class ActionExecutor {
                     }
                 }
                 case SEND_EMAIL -> {
-                    log.info("{} SEND email to '{}': {}", prefix, result.emailTo(), result.emailSubject());
+                    log.info("{} SEND email to '{}': {}", prefix, action.emailTo(), action.emailSubject());
                     if (!dryRun) {
-                        smtpEmailSender.send(result.emailTo(), result.emailSubject(), result.emailBody());
+                        smtpEmailSender.send(action.emailTo(), action.emailSubject(), action.emailBody());
                     }
                 }
-                default -> log.debug("{} No action for type {}", prefix, result.action());
+                default -> log.debug("{} No-op action: {}", prefix, action.type());
             }
         } catch (MessagingException e) {
-            log.error("{} Action failed for {}: {}", prefix, result.action(), e.getMessage());
-        }
-    }
-
-    public void executeAll(List<ActionDefinition> actions, FilterResult result,
-                           Message message, Store store, boolean dryRun,
-                           VariableResolver resolver, java.util.Map<String, String> vars) {
-        String prefix = dryRun ? "[DRY-RUN]" : "[LIVE]";
-        for (ActionDefinition action : actions) {
-            try {
-                switch (action.type()) {
-                    case FLAG -> {
-                        log.info("{} FLAG message", prefix);
-                        if (!dryRun) {
-                            message.setFlag(Flags.Flag.FLAGGED, true);
-                        }
-                    }
-                    case MOVE_TO_JUNK -> {
-                        log.info("{} MOVE to Junk", prefix);
-                        if (!dryRun) {
-                            moveToFolder(message, store, "Junk");
-                        }
-                    }
-                    case MOVE_TO_FOLDER -> {
-                        String folder = resolver.resolve(action.folder(), vars);
-                        log.info("{} MOVE to '{}'", prefix, folder);
-                        if (!dryRun) {
-                            moveToFolder(message, store, folder);
-                        }
-                    }
-                    case DELETE -> {
-                        log.info("{} DELETE message", prefix);
-                        if (!dryRun) {
-                            message.setFlag(Flags.Flag.DELETED, true);
-                            message.getFolder().expunge();
-                        }
-                    }
-                    case SEND_EMAIL -> {
-                        String to = resolver.resolve(action.to(), vars);
-                        String subject = resolver.resolve(action.subject(), vars);
-                        String body = resolver.resolve(action.body(), vars);
-                        log.info("{} SEND email to '{}': {}", prefix, to, subject);
-                        if (!dryRun) {
-                            smtpEmailSender.send(to, subject, body);
-                        }
-                    }
-                    default -> log.debug("{} No action for type {}", prefix, action.type());
-                }
-            } catch (MessagingException e) {
-                log.error("{} Action {} failed: {}", prefix, action.type(), e.getMessage());
-            }
+            log.error("{} Action {} failed: {}", prefix, action.type(), e.getMessage());
         }
     }
 
@@ -130,10 +77,13 @@ public class ActionExecutor {
             targetFolder.create(Folder.HOLDS_MESSAGES);
         }
         targetFolder.open(Folder.READ_WRITE);
-        Folder sourceFolder = message.getFolder();
-        sourceFolder.copyMessages(new Message[]{message}, targetFolder);
-        message.setFlag(Flags.Flag.DELETED, true);
-        sourceFolder.expunge();
-        targetFolder.close(false);
+        try {
+            Folder sourceFolder = message.getFolder();
+            sourceFolder.copyMessages(new Message[]{message}, targetFolder);
+            message.setFlag(Flags.Flag.DELETED, true);
+            sourceFolder.expunge();
+        } finally {
+            targetFolder.close(false);
+        }
     }
 }

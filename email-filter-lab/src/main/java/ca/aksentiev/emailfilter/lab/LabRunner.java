@@ -10,9 +10,11 @@ import ca.aksentiev.emailfilter.email.parser.EmailParsingService;
 import ca.aksentiev.emailfilter.filter.EmailMessage;
 import ca.aksentiev.emailfilter.lab.config.LabProperties;
 import ca.aksentiev.emailfilter.lab.engine.ActionExecutor;
+import ca.aksentiev.emailfilter.lab.engine.ActionType;
 import ca.aksentiev.emailfilter.lab.engine.FilterDefinition;
 import ca.aksentiev.emailfilter.lab.engine.FilterDispatcher;
 import ca.aksentiev.emailfilter.lab.engine.FilterResult;
+import ca.aksentiev.emailfilter.lab.engine.ResolvedAction;
 import ca.aksentiev.emailfilter.lab.engine.VariableResolver;
 import ca.aksentiev.emailfilter.lab.report.LabReportPrinter;
 import jakarta.mail.Folder;
@@ -122,7 +124,7 @@ public class LabRunner implements ApplicationRunner {
                     String subject = truncate(emailMessage.subject(), 50);
                     log.info("[{}/{}] \"{}\" → {} (score: {})",
                             String.format("%02d", i + 1), String.format("%02d", total),
-                            subject, result.action(), result.score());
+                            subject, formatActions(result), result.score());
 
                 } catch (Exception e) {
                     log.error("[{}/{}] Failed to process email: {}",
@@ -145,7 +147,9 @@ public class LabRunner implements ApplicationRunner {
                 for (int i = 0; i < results.size(); i++) {
                     FilterResult result = results.get(i);
                     Message message = messageList.get(i);
-                    actionExecutor.execute(result, message, store, false);
+                    for (ResolvedAction action : result.actions()) {
+                        actionExecutor.execute(action, message, store, false);
+                    }
                 }
             }
 
@@ -211,6 +215,26 @@ public class LabRunner implements ApplicationRunner {
                 log.debug("Error closing store: {}", e.getMessage());
             }
         }
+    }
+
+    private String formatActions(FilterResult result) {
+        if (result.actions().isEmpty()) {
+            return "LEAVE";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < result.actions().size(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            ResolvedAction a = result.actions().get(i);
+            sb.append(a.type());
+            if (a.type() == ActionType.MOVE_TO_FOLDER && a.targetFolder() != null) {
+                sb.append("(").append(a.targetFolder()).append(")");
+            } else if (a.type() == ActionType.SEND_EMAIL && a.emailTo() != null) {
+                sb.append("(").append(a.emailTo()).append(")");
+            }
+        }
+        return sb.toString();
     }
 
     private String truncate(String s, int max) {

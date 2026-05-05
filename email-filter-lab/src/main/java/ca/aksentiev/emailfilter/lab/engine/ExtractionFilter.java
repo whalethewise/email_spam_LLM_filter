@@ -1,5 +1,6 @@
 package ca.aksentiev.emailfilter.lab.engine;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,11 @@ public class ExtractionFilter {
                 .disableThinking()
                 .build();
 
+        ExtractionActions actions = filter.actions();
+        if (actions == null) {
+            return FilterResult.leave("no actions configured");
+        }
+
         String response;
         try {
             response = chatClient
@@ -89,69 +95,49 @@ public class ExtractionFilter {
                     .content();
         } catch (Exception e) {
             log.error("LLM call failed for extraction filter: {}", e.getMessage());
-            return buildAlwaysResult(filter, email, vars);
+            // On LLM failure, run only `always` actions (defensive — same as NONE)
+            List<ResolvedAction> resolved = resolveAll(actions.always(), vars);
+            return new FilterResult(resolved, 0, "LLM call failed: " + e.getMessage(), null, null);
         }
 
         // 6. Strip think blocks and trim
         response = stripThinkBlocks(response).trim();
 
-        // 7. Determine actions
-        ExtractionActions actions = filter.actions();
-        if (actions == null) {
-            return FilterResult.leave();
-        }
-
-        if ("NONE".equalsIgnoreCase(response)) {
-            // Execute always actions only
-            return buildFromActions(actions.always(), null, email, vars, null);
-        }
-
-        // LLM returned content — resolve {llm.response} in on-response actions
-        vars.put("llm.response", response);
-        List<ActionDefinition> allActions = new java.util.ArrayList<>();
-        allActions.addAll(actions.onResponse());
-        allActions.addAll(actions.always());
-
-        return buildFromActions(allActions, response, email, vars, response);
-    }
-
-    private FilterResult buildAlwaysResult(FilterDefinition filter, EmailMessage email, Map<String, String> vars) {
-        if (filter.actions() == null) {
-            return FilterResult.leave();
-        }
-        return buildFromActions(filter.actions().always(), null, email, vars, null);
-    }
-
-    private FilterResult buildFromActions(List<ActionDefinition> actions, String llmResponse,
-                                          EmailMessage email, Map<String, String> vars,
-                                          String rawLlmResponse) {
-        if (actions == null || actions.isEmpty()) {
-            return FilterResult.leave();
-        }
-
-        // Find first destructive action for the result
-        ActionDefinition primary = null;
-        for (ActionDefinition action : actions) {
-            if (action.type() != ActionType.LEAVE && action.type() != ActionType.FLAG) {
-                primary = action;
-                break;
+        // 7. Build action list — NONE skips on-response, always still runs
+        boolean noResponse = response.isEmpty() || "NONE".equalsIgnoreCase(response);
+        List<ActionDefinition> ordered = new ArrayList<>();
+        if (!noResponse) {
+            vars.put("llm.response", response);
+            if (actions.onResponse() != null) {
+                ordered.addAll(actions.onResponse());
             }
         }
-        if (primary == null) {
-            primary = actions.get(0);
+        if (actions.always() != null) {
+            ordered.addAll(actions.always());
         }
 
-        String folder = primary.folder() != null ? variableResolver.resolve(primary.folder(), vars) : null;
-        String to = primary.to() != null ? variableResolver.resolve(primary.to(), vars) : null;
-        String subject = primary.subject() != null ? variableResolver.resolve(primary.subject(), vars) : null;
-        String body = primary.body() != null ? variableResolver.resolve(primary.body(), vars) : null;
+        List<ResolvedAction> resolved = resolveAll(ordered, vars);
+        return new FilterResult(resolved, 0, null, noResponse ? null : response, null);
+    }
 
-        return new FilterResult(
-                primary.type(),
-                folder,
-                to, subject, body,
-                0, null,
-                rawLlmResponse, null);
+    private List<ResolvedAction> resolveAll(List<ActionDefinition> actions, Map<String, String> vars) {
+        if (actions == null || actions.isEmpty()) {
+            return List.of();
+        }
+        List<ResolvedAction> out = new ArrayList<>(actions.size());
+        for (ActionDefinition action : actions) {
+            out.add(resolve(action, vars));
+        }
+        return out;
+    }
+
+    private ResolvedAction resolve(ActionDefinition action, Map<String, String> vars) {
+        return new ResolvedAction(
+                action.type(),
+                action.folder() != null ? variableResolver.resolve(action.folder(), vars) : null,
+                action.to() != null ? variableResolver.resolve(action.to(), vars) : null,
+                action.subject() != null ? variableResolver.resolve(action.subject(), vars) : null,
+                action.body() != null ? variableResolver.resolve(action.body(), vars) : null);
     }
 
     private String extractDomain(String email) {

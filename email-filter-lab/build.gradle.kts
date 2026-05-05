@@ -27,6 +27,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.ai:spring-ai-starter-model-ollama")
     implementation("org.springframework.boot:spring-boot-starter-mail")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.assertj:assertj-core")
 }
 
 tasks.withType<Test> {
