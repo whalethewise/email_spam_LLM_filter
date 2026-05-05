@@ -10,8 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 import ca.aksentiev.emailfilter.filter.EmailMessage;
+import ca.aksentiev.emailfilter.lab.engine.ChainResult;
 import ca.aksentiev.emailfilter.lab.engine.FilterDefinition;
 import ca.aksentiev.emailfilter.lab.engine.FilterResult;
+import ca.aksentiev.emailfilter.lab.engine.FilterStep;
 import ca.aksentiev.emailfilter.lab.engine.FilterType;
 import ca.aksentiev.emailfilter.lab.engine.ResolvedAction;
 import org.slf4j.Logger;
@@ -30,45 +32,72 @@ public class LabReportPrinter {
     private static final String LINE = "──────────────────────────────────────────────────────────────────────";
     private static final String DOUBLE_LINE = "══════════════════════════════════════════════════════════════════════";
 
-    public String buildReport(String filterName, FilterDefinition filter, String folder,
-                              List<EmailMessage> emails, List<FilterResult> results) {
+    public String buildReport(List<String> chain,
+                               Map<String, FilterDefinition> definitions,
+                               String folder,
+                               List<EmailMessage> emails,
+                               List<ChainResult> results) {
         StringWriter sw = new StringWriter();
         PrintWriter out = new PrintWriter(sw);
         int total = emails.size();
+        boolean isChain = chain.size() > 1;
 
         // Per-email detail
         for (int i = 0; i < total; i++) {
             EmailMessage email = emails.get(i);
-            FilterResult result = results.get(i);
+            ChainResult result = results.get(i);
             String index = String.format("[%02d/%02d]", i + 1, total);
 
-            printEmailResult(out, index, filter.type(), email, result);
+            if (isChain) {
+                printChainResult(out, index, email, result);
+            } else if (!result.steps().isEmpty()) {
+                FilterStep onlyStep = result.steps().get(0);
+                printSingleFilterResult(out, index, onlyStep.filterType(), email, result, onlyStep.result());
+            } else {
+                printSingleFilterResult(out, index, FilterType.SCORING, email, result, null);
+            }
             out.println(LINE);
         }
 
         // Summary
         out.println(DOUBLE_LINE);
-        out.printf("  SUMMARY — %s [%s] — %s%n", filterName, filter.type(), folder);
+        if (isChain) {
+            out.printf("  SUMMARY — chain: %s — %s%n", String.join(" → ", chain), folder);
+        } else {
+            String filterName = chain.get(0);
+            FilterType type = definitions.get(filterName).type();
+            out.printf("  SUMMARY — %s [%s] — %s%n", filterName, type, folder);
+        }
         out.printf("  Emails processed : %d%n", total);
         out.println(DOUBLE_LINE);
         out.println();
 
-        if (filter.type() == FilterType.SCORING) {
+        if (!isChain && containsScoring(chain, definitions)) {
             printScoreDistribution(out, results);
         }
         printActionDistribution(out, results);
+        if (isChain) {
+            printChainStopDistribution(out, results);
+        }
 
         // Promote block
         out.println();
         out.println(DOUBLE_LINE);
-        out.println("  PROMOTE THIS FILTER");
-        out.println("  1. Copy the YAML block below into the main app's filters.yml");
-        out.println("  2. Add filter name to the account's filter list");
-        out.println("  3. Run: curl -X POST http://192.168.10.180:8081/api/reload/filters");
+        out.println("  PROMOTE TO PRODUCTION");
+        out.println("  1. Copy the YAML block(s) below into the main app's filters.yml");
+        out.println("  2. Add filter name(s) to the account's filter list, in this order");
+        out.println("  3. Run: curl -X POST http://192.168.10.180:8081/api/reload");
         out.println(DOUBLE_LINE);
         out.println();
-        out.printf("  %s:%n", filterName);
-        printPromoteYaml(out, filter);
+        for (String name : chain) {
+            FilterDefinition def = definitions.get(name);
+            if (def == null) {
+                continue;
+            }
+            out.printf("  %s:%n", name);
+            printPromoteYaml(out, def);
+            out.println();
+        }
 
         return sw.toString();
     }
@@ -97,12 +126,32 @@ public class LabReportPrinter {
         }
     }
 
-    private void printEmailResult(PrintWriter out, String index, FilterType type,
-                                   EmailMessage email, FilterResult result) {
+    private void printChainResult(PrintWriter out, String index, EmailMessage email, ChainResult result) {
+        String subject = truncate(email.subject(), 60);
+
+        out.printf("%s  Chain run:%n", index);
+        if (result.steps().isEmpty()) {
+            out.printf("         (no filters ran)%n");
+        }
+        for (int s = 0; s < result.steps().size(); s++) {
+            FilterStep step = result.steps().get(s);
+            String stopMarker = step.stoppedChain() ? "  [STOPPED CHAIN]" : "";
+            out.printf("         %02d. %-22s → %s%s%n",
+                    s + 1, step.filterName(), formatStepActions(step.result()), stopMarker);
+        }
+        out.printf("         From   : %s%n", email.from());
+        out.printf("         Subject: %s%n", subject);
+        if (!result.actions().isEmpty()) {
+            out.printf("         Final  : %s%n", formatAggregatedActions(result));
+        }
+    }
+
+    private void printSingleFilterResult(PrintWriter out, String index, FilterType type,
+                                          EmailMessage email, ChainResult result, FilterResult step) {
         String subject = truncate(email.subject(), 60);
 
         if (result.isLeave()) {
-            String reason = result.reason() != null ? result.reason() : "";
+            String reason = step != null && step.reason() != null ? step.reason() : "";
             out.printf("%s  Result : LEAVE%s%n", index, reason.isEmpty() ? "" : " (" + reason + ")");
             out.printf("         From   : %s%n", email.from());
             out.printf("         Subject: %s%n", subject);
@@ -111,37 +160,38 @@ public class LabReportPrinter {
 
         switch (type) {
             case SCORING -> {
-                String category = result.score() >= 8 ? "SPAM      " :
-                                  result.score() >= 4 ? "BORDERLINE" : "LEGITIMATE";
-                out.printf("%s  Score:  %d  [%s]%n", index, result.score(), category);
-                printActionLines(out, result);
+                int score = step != null ? step.score() : 0;
+                String category = score >= 8 ? "SPAM      " :
+                                  score >= 4 ? "BORDERLINE" : "LEGITIMATE";
+                out.printf("%s  Score:  %d  [%s]%n", index, score, category);
+                printActionLines(out, result.actions());
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
-                if (result.reason() != null) {
-                    out.printf("         Reason : %s%n", result.reason());
+                if (step != null && step.reason() != null) {
+                    out.printf("         Reason : %s%n", step.reason());
                 }
             }
             case EXTRACTION -> {
-                boolean isNone = result.llmResponse() == null;
+                boolean isNone = step == null || step.llmResponse() == null;
                 out.printf("%s  Result : %s%n", index, isNone ? "NONE" : "RESPONSE");
-                printActionLines(out, result);
+                printActionLines(out, result.actions());
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
-                if (!isNone && result.llmResponse() != null) {
-                    out.printf("         Extract: %s%n", truncate(result.llmResponse(), 70));
+                if (!isNone) {
+                    out.printf("         Extract: %s%n", truncate(step.llmResponse(), 70));
                 }
             }
             case LOGISTICS -> {
-                out.printf("%s  Rule   : %s%n", index, result.matchedRule() != null ? result.matchedRule() : "none");
-                printActionLines(out, result);
+                String rule = step != null && step.matchedRule() != null ? step.matchedRule() : "none";
+                out.printf("%s  Rule   : %s%n", index, rule);
+                printActionLines(out, result.actions());
                 out.printf("         From   : %s%n", email.from());
                 out.printf("         Subject: %s%n", subject);
             }
         }
     }
 
-    private void printActionLines(PrintWriter out, FilterResult result) {
-        List<ResolvedAction> actions = result.actions();
+    private void printActionLines(PrintWriter out, List<ResolvedAction> actions) {
         if (actions.isEmpty()) {
             out.printf("         Action : LEAVE%n");
             return;
@@ -150,6 +200,32 @@ public class LabReportPrinter {
             String label = i == 0 ? "Action " : "       ";
             out.printf("         %s: %s%n", label, formatAction(actions.get(i)));
         }
+    }
+
+    private String formatStepActions(FilterResult result) {
+        List<ResolvedAction> actions = result.actions();
+        if (actions.isEmpty()) {
+            return "LEAVE";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < actions.size(); i++) {
+            if (i > 0) {
+                sb.append(" + ");
+            }
+            sb.append(formatAction(actions.get(i)));
+        }
+        return sb.toString();
+    }
+
+    private String formatAggregatedActions(ChainResult result) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < result.actions().size(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(formatAction(result.actions().get(i)));
+        }
+        return sb.toString();
     }
 
     private String formatAction(ResolvedAction action) {
@@ -163,15 +239,31 @@ public class LabReportPrinter {
         };
     }
 
-    private void printScoreDistribution(PrintWriter out, List<FilterResult> results) {
+    private boolean containsScoring(List<String> chain, Map<String, FilterDefinition> defs) {
+        for (String name : chain) {
+            FilterDefinition def = defs.get(name);
+            if (def != null && def.type() == FilterType.SCORING) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void printScoreDistribution(PrintWriter out, List<ChainResult> results) {
         int low = 0, mid = 0, high = 0, errors = 0;
-        for (FilterResult r : results) {
-            if (r.isLeave() && "whitelisted".equals(r.reason())) {
+        for (ChainResult r : results) {
+            FilterStep first = r.steps().isEmpty() ? null : r.steps().get(0);
+            if (first == null) {
                 continue;
             }
-            if (r.score() >= 1 && r.score() <= 3) low++;
-            else if (r.score() >= 4 && r.score() <= 7) mid++;
-            else if (r.score() >= 8) high++;
+            int score = first.result().score();
+            if (r.isLeave() && first.result().reason() != null
+                    && "whitelisted".equals(first.result().reason())) {
+                continue;
+            }
+            if (score >= 1 && score <= 3) low++;
+            else if (score >= 4 && score <= 7) mid++;
+            else if (score >= 8) high++;
             else errors++;
         }
         out.printf("  SCORE DISTRIBUTION          ACTIONS%n");
@@ -185,7 +277,7 @@ public class LabReportPrinter {
         out.println();
     }
 
-    private void printActionCountPadded(PrintWriter out, List<FilterResult> results, int line) {
+    private void printActionCountPadded(PrintWriter out, List<ChainResult> results, int line) {
         Map<String, Integer> counts = countActions(results);
         String[] keys = {"leave", "move-to-junk", "move-to-folder", "send-email", "flag", "delete"};
         if (line < keys.length) {
@@ -195,7 +287,7 @@ public class LabReportPrinter {
         }
     }
 
-    private void printActionDistribution(PrintWriter out, List<FilterResult> results) {
+    private void printActionDistribution(PrintWriter out, List<ChainResult> results) {
         Map<String, Integer> counts = countActions(results);
         out.println("  ACTIONS");
         for (Map.Entry<String, Integer> entry : counts.entrySet()) {
@@ -204,7 +296,26 @@ public class LabReportPrinter {
         out.println();
     }
 
-    private Map<String, Integer> countActions(List<FilterResult> results) {
+    private void printChainStopDistribution(PrintWriter out, List<ChainResult> results) {
+        Map<String, Integer> stops = new LinkedHashMap<>();
+        int passedThrough = 0;
+        for (ChainResult r : results) {
+            String stoppedAt = r.stoppedAtFilter();
+            if (stoppedAt == null) {
+                passedThrough++;
+            } else {
+                stops.merge(stoppedAt, 1, Integer::sum);
+            }
+        }
+        out.println("  CHAIN OUTCOMES");
+        for (Map.Entry<String, Integer> entry : stops.entrySet()) {
+            out.printf("  stopped at %-12s: %2d%n", entry.getKey(), entry.getValue());
+        }
+        out.printf("  passed through    : %2d%n", passedThrough);
+        out.println();
+    }
+
+    private Map<String, Integer> countActions(List<ChainResult> results) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         counts.put("leave", 0);
         counts.put("move-to-junk", 0);
@@ -212,7 +323,7 @@ public class LabReportPrinter {
         counts.put("send-email", 0);
         counts.put("flag", 0);
         counts.put("delete", 0);
-        for (FilterResult r : results) {
+        for (ChainResult r : results) {
             if (r.actions().isEmpty()) {
                 counts.merge("leave", 1, Integer::sum);
                 continue;
