@@ -111,14 +111,15 @@ public class LabFiltersConfig {
         PreProcessorConfig preProcessor = parsePreProcessor((Map<String, Object>) map.get("pre-processor"));
         SpamAssassinConfig spamAssassin = parseSpamAssassin((Map<String, Object>) map.get("spamassassin"));
         ScoringConfig scoring = parseScoringConfig((Map<String, Object>) map.get("scoring"));
-        Map<String, String> sourceDomains = parseSourceDomains((Map<String, Object>) map.get("source-domains"));
+        Map<String, String> sourceDomains = parseStringMap((Map<String, Object>) map.get("source-domains"));
+        Map<String, String> sourceSubjects = parseStringMap((Map<String, Object>) map.get("source-subjects"));
         Map<String, Object> data = (Map<String, Object>) map.get("data");
         String prompt = getString(map, "prompt");
         ExtractionActions actions = parseExtractionActions((Map<String, Object>) map.get("actions"));
         List<LogisticsRule> rules = parseRules((List<Map<String, Object>>) map.get("rules"));
 
         return new FilterDefinition(type, enabled, ollamaModel, whitelist, preProcessor,
-                spamAssassin, scoring, sourceDomains, data, prompt, actions, rules);
+                spamAssassin, scoring, sourceDomains, sourceSubjects, data, prompt, actions, rules);
     }
 
     @SuppressWarnings("unchecked")
@@ -185,8 +186,7 @@ public class LabFiltersConfig {
         return new ScoringConfig(weights, thresholds, actions);
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, String> parseSourceDomains(Map<String, Object> map) {
+    private Map<String, String> parseStringMap(Map<String, Object> map) {
         if (map == null) {
             return null;
         }

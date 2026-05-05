@@ -39,29 +39,47 @@ public class ExtractionFilter {
             return FilterResult.leave("whitelisted");
         }
 
-        // 2. Source domain check
+        // 2. Source gates — domain first, then subject; OR'd. If at least one is
+        //    configured and neither matches, LEAVE without an LLM call. If neither
+        //    is configured, fall back to the sender address per spec.
         String sourceName = null;
         String sourceDomain = null;
-        if (filter.sourceDomains() != null && !filter.sourceDomains().isEmpty()) {
-            String senderDomain = extractDomain(email.from());
-            for (Map.Entry<String, String> entry : filter.sourceDomains().entrySet()) {
-                if (senderDomain.equalsIgnoreCase(entry.getKey())) {
-                    sourceDomain = entry.getKey();
-                    sourceName = entry.getValue();
-                    break;
+        boolean domainGate = filter.sourceDomains() != null && !filter.sourceDomains().isEmpty();
+        boolean subjectGate = filter.sourceSubjects() != null && !filter.sourceSubjects().isEmpty();
+
+        if (domainGate || subjectGate) {
+            if (domainGate) {
+                String senderDomain = extractDomain(email.from());
+                for (Map.Entry<String, String> entry : filter.sourceDomains().entrySet()) {
+                    if (senderDomain.equalsIgnoreCase(entry.getKey())) {
+                        sourceDomain = entry.getKey();
+                        sourceName = entry.getValue();
+                        break;
+                    }
                 }
             }
-            if (sourceDomain == null) {
-                return FilterResult.leave("sender not in source-domains");
+            if (sourceName == null && subjectGate) {
+                String subject = email.subject() != null ? email.subject().toLowerCase() : "";
+                for (Map.Entry<String, String> entry : filter.sourceSubjects().entrySet()) {
+                    if (subject.startsWith(entry.getKey().toLowerCase())) {
+                        sourceName = entry.getValue();
+                        break;
+                    }
+                }
             }
+            if (sourceName == null) {
+                return FilterResult.leave("no source gate matched");
+            }
+        } else {
+            // No gate configured — pass through and resolve {source} from sender
+            sourceName = email.from();
+            sourceDomain = extractDomain(email.from());
         }
 
         // 3. Build variables
         Map<String, String> vars = new HashMap<>();
         vars.putAll(variableResolver.emailVariables(email));
-        if (sourceName != null) {
-            vars.putAll(variableResolver.sourceVariables(sourceName, sourceDomain));
-        }
+        vars.putAll(variableResolver.sourceVariables(sourceName, sourceDomain));
         if (filter.data() != null) {
             vars.putAll(variableResolver.dataVariables(filter.data()));
         }

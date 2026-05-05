@@ -12,6 +12,7 @@ public record FilterDefinition(
         SpamAssassinConfig spamAssassin,
         ScoringConfig scoring,
         Map<String, String> sourceDomains,
+        Map<String, String> sourceSubjects,
         Map<String, Object> data,
         String prompt,
         ExtractionActions actions,

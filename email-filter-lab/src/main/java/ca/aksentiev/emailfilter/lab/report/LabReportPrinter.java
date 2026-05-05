@@ -290,6 +290,9 @@ public class LabReportPrinter {
         if (filter.sourceDomains() != null) {
             map.put("source-domains", filter.sourceDomains());
         }
+        if (filter.sourceSubjects() != null) {
+            map.put("source-subjects", filter.sourceSubjects());
+        }
         if (filter.rules() != null) {
             map.put("rules", filter.rules());
         }

@@ -128,7 +128,7 @@ class LogisticsFilterTest {
                 true,
                 null,
                 null, null, null, null,
-                null, null, null, null,
+                null, null, null, null, null,
                 rules);
     }
 
