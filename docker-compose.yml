@@ -53,7 +53,11 @@ services:
       - "783"
     networks:
       - email-filter
+      - ai-platform
 
 networks:
   email-filter:
     driver: bridge
+  ai-platform:
+    external: true
+
