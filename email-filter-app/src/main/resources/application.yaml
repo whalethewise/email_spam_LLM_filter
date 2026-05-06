@@ -60,7 +60,7 @@ emailfilter:
     char-substitutions-path: classpath:char_substitutions.json
     whitelist-path: classpath:whitelist.yml
     # LLM system prompt — override with file:/app/config/prompt.txt to mount externally
-    llm-prompt-path: classpath:prompt.txt
+    llm-prompt-path: file:/app/config/prompt.txt
     # Scoring layer weights (must sum to 1.0)
     weights:
       preprocessor: 0.20

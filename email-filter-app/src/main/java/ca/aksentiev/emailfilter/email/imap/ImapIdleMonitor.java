@@ -204,6 +204,11 @@ public class ImapIdleMonitor {
     private void handleNewMessages(Message[] messages, AccountProperties.Account account) {
         for (Message message : messages) {
             try {
+                String[] processed = message.getHeader("X-EmailFilter-Processed");
+                if (processed != null && processed.length > 0) {
+                    log.debug("Skipping already-processed email (X-EmailFilter-Processed: {})", processed[0]);
+                    continue;
+                }
                 EmailMessage parsed = parsingService.parse(message);
                 processingQueue.enqueue(new QueuedEmail(parsed, account));
                 log.info("Enqueued new email '{}' from '{}' for account '{}'",
