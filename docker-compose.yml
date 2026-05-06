@@ -26,10 +26,7 @@ services:
     environment:
       DRY_RUN_REPORT_DIR: /var/log/email-filter
     ports:
-      # Main application port
       - "8090:8080"
-      # Management / reload API (restrict to internal network in production)
-      - "8091:8081"
     volumes:
       # External configuration — edit these without rebuilding the image.
       # Paths inside the container match what application.yml expects.

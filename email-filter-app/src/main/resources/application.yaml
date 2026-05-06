@@ -58,7 +58,7 @@ emailfilter:
     # Paths to pre-processor data files (mounted as Docker volumes in production)
     brands-path: classpath:brands.json
     char-substitutions-path: classpath:char_substitutions.json
-    whitelist-path: classpath:whitelist.yml
+    whitelist-path: file:/app/config/whitelist.yml
     # LLM system prompt — override with file:/app/config/prompt.txt to mount externally
     llm-prompt-path: file:/app/config/prompt.txt
     # Scoring layer weights (must sum to 1.0)
