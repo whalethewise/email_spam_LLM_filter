@@ -80,6 +80,14 @@ public class ManagementController {
                 "timestamp", System.currentTimeMillis()));
     }
 
+    @GetMapping("/prompt")
+    public ResponseEntity<Map<String, Object>> prompt() {
+        String current = llmScoringService.getSystemPrompt();
+        return ResponseEntity.ok(Map.of(
+                "length", current.length(),
+                "prompt", current));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception e) {
         log.error("Unhandled exception in management API: {}", e.getMessage(), e);

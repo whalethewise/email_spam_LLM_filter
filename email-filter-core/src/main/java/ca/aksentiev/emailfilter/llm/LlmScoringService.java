@@ -54,6 +54,10 @@ public class LlmScoringService {
 
     private volatile String systemPrompt = FALLBACK_SYSTEM_PROMPT;
 
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
     public LlmScoringService(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper,
                               SpamFilterProperties spamFilterProperties, ResourceLoader resourceLoader) {
         this.chatClient = chatClientBuilder.build();
