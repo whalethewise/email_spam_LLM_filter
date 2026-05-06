@@ -37,6 +37,10 @@ public class Whitelist {
      * @param senderAddress the sender's email address
      * @return true if whitelisted
      */
+    public Set<String> getAddresses() { return addresses; }
+    public Set<String> getDomains() { return domains; }
+    public List<String> getPatterns() { return patterns.stream().map(Pattern::pattern).toList(); }
+
     public boolean isWhitelisted(String senderAddress) {
         if (senderAddress == null || senderAddress.isBlank()) {
             return false;

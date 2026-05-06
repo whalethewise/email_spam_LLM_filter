@@ -80,6 +80,15 @@ public class ManagementController {
                 "timestamp", System.currentTimeMillis()));
     }
 
+    @GetMapping("/whitelist")
+    public ResponseEntity<Map<String, Object>> whitelist() {
+        var wl = spamFilter.getWhitelist();
+        return ResponseEntity.ok(Map.of(
+                "addresses", wl.getAddresses(),
+                "domains", wl.getDomains(),
+                "patterns", wl.getPatterns()));
+    }
+
     @GetMapping("/prompt")
     public ResponseEntity<Map<String, Object>> prompt() {
         String current = llmScoringService.getSystemPrompt();

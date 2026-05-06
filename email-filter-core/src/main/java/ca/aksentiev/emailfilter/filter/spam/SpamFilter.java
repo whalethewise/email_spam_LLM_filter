@@ -77,6 +77,10 @@ public class SpamFilter implements EmailFilter {
         this.whitelist = loadWhitelist();
     }
 
+    public Whitelist getWhitelist() {
+        return whitelist;
+    }
+
     @SuppressWarnings("unchecked")
     private Whitelist loadWhitelist() {
         String path = properties.getWhitelistPath();
