@@ -24,6 +24,6 @@ RUN mkdir -p /app/config /var/log/email-filter \
 
 USER appuser
 
-EXPOSE 8080 8081
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.additional-location=optional:file:/app/config/"]
