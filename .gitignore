@@ -8,8 +8,9 @@ build/
 
 
 ### IntelliJ IDEA ###
+# IntelliJ files (optional, some people commit these)
 .idea
-.idea/                  # IntelliJ files (optional, some people commit these)
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -17,8 +18,10 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
-.env                    # secrets — never commit this
-application-local.yml   # any local overrides
+# secrets — never commit this
+.env
+# any local overrides
+application-local.yml
 
 # Docker runtime config and data (examples are tracked, real files are not)
 config/application.yml
