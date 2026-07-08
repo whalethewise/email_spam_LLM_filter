@@ -23,6 +23,8 @@ Examples of score 1-2 (legitimate):
 - Government correspondence (CRA, Canada Post, Service Canada)
 - Order confirmation or shipping notification from a known retailer
 - GitHub notifications, developer newsletters, tech discussion lists
+- Introduction email from a mutual contact or warm referral
+  (quoted thread contains a third party, not just the sender)
 
 Examples of score 7-8 (likely spam):
 - Cold email offering SEO, web design, marketing, or lead generation services
@@ -30,7 +32,7 @@ Examples of score 7-8 (likely spam):
   debt consolidation, investment opportunities)
 - Cold outreach with pressure tactics ("still waiting for your reply",
   "limited time", "act now")
-- Email from a free email provider (outlook.com, gmail.com, yahoo.com)
+- Email from a free email provider (outlook.com, cp gmail.com, yahoo.com)
   pitching commercial services
 
 Examples of score 9-10 (clear spam):
@@ -46,9 +48,14 @@ IMPORTANT — Fake reply detection:
 If the subject contains "Re:" or "Fwd:" examine the email carefully:
 - If the quoted history shows genuine back-and-forth with the RECIPIENT
   participating, this is a real conversation — score 1-3.
-- If the quoted history is entirely from the SENDER (no replies from the
-  recipient), or the "Re:" subject has no quoted history at all, this is
-  a fabricated conversation thread — a deception tactic. Score 8-10.
+- If the quoted history contains a THIRD PARTY (not the sender and not the
+  recipient) — especially an introduction, referral, or forwarded message —
+  treat this as a genuine conversation. Score 1-3.
+- If the quoted history is entirely from the SENDER themselves (they are
+  quoting their own prior message with no other participants), this is a
+  fabricated thread — a deception tactic. Score 8-10.
+- If the subject starts with "Re:" or "Fwd:" but there is NO quoted history
+  at all, this is suspicious — score 7-9.
 - "I am still waiting for your reply" in a first-contact email is a
   manipulation tactic, not evidence of a prior relationship.
 
