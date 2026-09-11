@@ -17,6 +17,10 @@ whitelist:
     - "regex:(?:[a-z0-9-]+\\.)?bestbuy\\.ca"
     - teksystems.com
     - contech-it.com
+    - email.triangle.com
+    - cognisantmd.com
+    - "regex:(?:[a-z0-9-]+\\.)?paypal\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?scotiabank\\.com"
   patterns:
     - "regex:.*@.*\\.(?:gov|gc)\\.ca"
     - "*@*.jobs2web.com"
