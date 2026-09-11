@@ -87,6 +87,7 @@ public class ManagementController {
         return ResponseEntity.ok(Map.of(
                 "addresses", wl.getAddresses(),
                 "domains", wl.getDomains(),
+                "domainPatterns", wl.getDomainPatterns(),
                 "patterns", wl.getPatterns()));
     }
 
