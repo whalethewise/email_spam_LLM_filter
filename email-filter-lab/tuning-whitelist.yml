@@ -29,6 +29,7 @@ whitelist:
     - "regex:(?:[a-z0-9-]+\\.)?mcap\\.com"
     - "regex:(?:[a-z0-9-]+\\.)?jobleads\\.com"
     - "regex:(?:[a-z0-9-]+\\.)?enercare\\.ca"
+    - target-specialty.com
   patterns:
     - "regex:.*@.*\\.(?:gov|gc)\\.ca"
     - "*@*.jobs2web.com"
