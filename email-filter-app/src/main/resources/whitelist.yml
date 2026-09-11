@@ -1,8 +1,38 @@
 whitelist:
   addresses:
-    - ceo@mycompany.com
+    - whalethewise@gmail.com
+    - mike.ladochi@outlook.com
   domains:
-    - mycompany.com
-    - trusted-partner.com
+    - glassdoor.com
+    - "regex:aksent(?:i|y)ev\\.(?:ca|net)"
+    - iaphotoart.com
+    - experis.ca
+    - versaterm.com
+    - blood.ca
+    - medallia.ca
+    - intellibus.com
+    - altis.com
+    - bazaarvoive-cgc.com
+    - cira.ca
+    - bambora.com
+    - "regex:(?:[a-z0-9-]+\\.)?bestbuy\\.ca"
+    - teksystems.com
+    - contech-it.com
+    - email.triangle.com
+    - cognisantmd.com
+    - "regex:(?:[a-z0-9-]+\\.)?paypal\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?scotiabank\\.com"
+    - huntandfishontario.com
+    - ngavant.ca
+    - recordsregistry.ca
+    - hackerrankforwork.com
+    - "regex:(?:[a-z0-9-]+\\.)?mcap\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?jobleads\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?enercare\\.ca"
+    - target-specialty.com
+    - notifications.canadapost-postescanada.ca
   patterns:
-    - "*@*.gov.ca"
+    - "regex:.*@.*\\.(?:gov|gc)\\.ca"
+    - "*@*.jobs2web.com"
+    - "*@*.tbkdev.com"
+    - "*@notify.cloudflare.com"
