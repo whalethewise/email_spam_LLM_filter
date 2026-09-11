@@ -1,0 +1,24 @@
+whitelist:
+  addresses:
+    - whalethewise@gmail.com
+  domains:
+    - glassdoor.com
+    - "regex:aksent(?:i|y)ev\\.(?:ca|net)"
+    - iaphotoart.com
+    - experis.ca
+    - versaterm.com
+    - blood.ca
+    - medallia.ca
+    - intellibus.com
+    - altis.com
+    - bazaarvoive-cgc.com
+    - cira.ca
+    - bambora.com
+    - "regex:(?:[a-z0-9-]+\\.)?bestbuy\\.ca"
+    - teksystems.com
+    - contech-it.com
+  patterns:
+    - "regex:.*@.*\\.(?:gov|gc)\\.ca"
+    - "*@*.jobs2web.com"
+    - "*@*.tbkdev.com"
+    - "*@notify.cloudflare.com"

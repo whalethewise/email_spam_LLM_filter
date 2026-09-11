@@ -1,10 +1,5 @@
 package ca.aksentiev.emailfilter.lab.config;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,9 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.yaml.snakeyaml.LoaderOptions;
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Loads staging-filters.yml and binds it to a Map of filter name to FilterDefinition.
@@ -42,7 +34,7 @@ public class LabFiltersConfig {
 
     @Bean
     public Map<String, FilterDefinition> filterDefinitions() {
-        Map<String, Object> raw = loadYaml();
+        Map<String, Object> raw = LabYamlLoader.load("staging-filters.yml");
         if (raw == null || !raw.containsKey("filters")) {
             log.warn("No 'filters' key found in staging-filters.yml");
             return Collections.emptyMap();
@@ -60,46 +52,6 @@ public class LabFiltersConfig {
 
         log.info("Loaded {} filter definitions from staging-filters.yml", result.size());
         return Collections.unmodifiableMap(result);
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> loadYaml() {
-        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
-
-        // Try file on disk first (working directory)
-        File file = new File("staging-filters.yml");
-        if (!file.exists()) {
-            file = new File("email-filter-lab/staging-filters.yml");
-        }
-        if (file.exists()) {
-            try {
-                Path realPath = file.toPath().toRealPath();
-                Path cwd = Path.of("").toAbsolutePath().toRealPath();
-                if (!realPath.startsWith(cwd)) {
-                    log.error("staging-filters.yml resolves outside working directory: {}", realPath);
-                    return null;
-                }
-                log.info("Loading staging-filters.yml from: {}", realPath);
-                try (FileInputStream fis = new FileInputStream(realPath.toFile())) {
-                    return yaml.load(fis);
-                }
-            } catch (IOException e) {
-                log.error("Failed to load staging-filters.yml from disk: {}", e.getMessage());
-            }
-        }
-
-        // Fall back to classpath
-        log.info("Loading staging-filters.yml from classpath");
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("staging-filters.yml")) {
-            if (is != null) {
-                return yaml.load(is);
-            }
-        } catch (Exception e) {
-            log.error("Failed to load staging-filters.yml from classpath: {}", e.getMessage());
-        }
-
-        log.error("staging-filters.yml not found on disk or classpath");
-        return null;
     }
 
     @SuppressWarnings("unchecked")

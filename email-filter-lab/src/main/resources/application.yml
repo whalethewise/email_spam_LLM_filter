@@ -35,10 +35,21 @@ lab:
     from-address: ${SMTP_FROM_ADDRESS:${SMTP_USERNAME:}}
     from-name: "AI Email Filter Lab"
   run:
+    mode: ${LAB_MODE:filter}
     filter: ${LAB_FILTER:spam-filter}
     limit: ${LIMIT:0}
     dry-run: ${DRY_RUN:true}
     report-file: ${REPORT_FILE:}
+  tuning:
+    prompt-file: ${PROMPT_FILE:prompt.txt}
+    reshuffle:
+      inbox: ${RESHUFFLE_INBOX:INBOX}
+      junk: ${RESHUFFLE_JUNK:INBOX.Junk}
+      safe-max: ${RESHUFFLE_SAFE_MAX:3}
+      review-max: ${RESHUFFLE_REVIEW_MAX:6}
+      weight-preprocessor: ${RESHUFFLE_WEIGHT_PP:0.20}
+      weight-spamassassin: ${RESHUFFLE_WEIGHT_SA:0.35}
+      weight-llm: ${RESHUFFLE_WEIGHT_LLM:0.45}
 
 logging:
   level:

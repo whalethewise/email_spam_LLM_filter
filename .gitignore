@@ -28,5 +28,9 @@ config/application.yml
 data/
 production-files/
 
+# generated lab review/reshuffle reports
+email-filter-lab/*review_*.txt
+email-filter-lab/*reshuffle_*.txt
+
 *.class
 
