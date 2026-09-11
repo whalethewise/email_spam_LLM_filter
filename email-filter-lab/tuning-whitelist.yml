@@ -30,6 +30,7 @@ whitelist:
     - "regex:(?:[a-z0-9-]+\\.)?jobleads\\.com"
     - "regex:(?:[a-z0-9-]+\\.)?enercare\\.ca"
     - target-specialty.com
+    - notifications.canadapost-postescanada.ca
   patterns:
     - "regex:.*@.*\\.(?:gov|gc)\\.ca"
     - "*@*.jobs2web.com"
