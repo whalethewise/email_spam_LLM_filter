@@ -1,6 +1,7 @@
 whitelist:
   addresses:
     - whalethewise@gmail.com
+    - mike.ladochi@outlook.com
   domains:
     - glassdoor.com
     - "regex:aksent(?:i|y)ev\\.(?:ca|net)"

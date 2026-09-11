@@ -32,8 +32,12 @@ Examples of score 7-8 (likely spam):
   debt consolidation, investment opportunities)
 - Cold outreach with pressure tactics ("still waiting for your reply",
   "limited time", "act now")
-- Email from a free email provider (outlook.com, gmail.com, yahoo.com)
-  pitching commercial services
+- Mass-market commercial pitch (SEO, insurance, subscriptions, lead-gen)
+  sent from a free email provider (outlook.com, gmail.com, yahoo.com) with
+  no personal context. This does NOT apply to an individual (recruiter,
+  colleague, personal contact) forwarding or discussing a specific job,
+  document, or project from their personal address — that is normal, not
+  a spam signal on its own.
 
 Examples of score 9-10 (clear spam):
 - Sender domain impersonates a known brand (e.g. amazon-delivery.ru)
@@ -43,6 +47,15 @@ Examples of score 9-10 (clear spam):
 - Urgent "account suspended" or "verify now" threats
 - Prize, lottery, or inheritance notifications
 - Requests for personal information or credentials
+
+IMPORTANT — What counts as impersonation:
+Impersonation means the SENDER'S OWN domain, display name, or claimed
+identity is spoofing a company — e.g. a lookalike domain claiming to BE
+that company, or a display name posing as its support team. A company
+name simply appearing in the subject or body because the email is ABOUT
+that company (a forwarded job description, a referral, a receipt for a
+purchase there) is not impersonation. Do not flag a company mention as
+impersonation unless the sender is actually posing as it.
 
 IMPORTANT — Fake reply detection:
 If the subject contains "Re:" or "Fwd:" examine the email carefully:
