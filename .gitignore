@@ -26,6 +26,7 @@ application-local.yml
 # Docker runtime config and data (examples are tracked, real files are not)
 config/application.yml
 data/
+production-files/
 
 *.class
 

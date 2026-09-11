@@ -40,6 +40,7 @@ services:
       - ./data/reports:/var/log/email-filter
     networks:
       - email-filter
+      - ai-platform
 
   spamassassin:
     image: instantlinux/spamassassin:latest
@@ -50,7 +51,6 @@ services:
       - "783"
     networks:
       - email-filter
-      - ai-platform
 
 networks:
   email-filter:

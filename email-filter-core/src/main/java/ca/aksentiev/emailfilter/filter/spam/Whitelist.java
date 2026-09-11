@@ -19,15 +19,21 @@ public class Whitelist {
 
     private final Set<String> addresses;
     private final Set<String> domains;
+    private final List<Pattern> domainPatterns;
     private final List<Pattern> patterns;
 
     public Whitelist(WhitelistConfig config) {
         this.addresses = config.addresses() != null
                 ? config.addresses().stream().map(String::toLowerCase).collect(Collectors.toUnmodifiableSet())
                 : Set.of();
-        this.domains = config.domains() != null
-                ? config.domains().stream().map(String::toLowerCase).collect(Collectors.toUnmodifiableSet())
-                : Set.of();
+
+        List<String> rawDomains = config.domains() != null ? config.domains() : List.of();
+        this.domains = rawDomains.stream()
+                .filter(d -> !d.isBlank() && !d.startsWith(REGEX_PREFIX))
+                .map(String::toLowerCase)
+                .collect(Collectors.toUnmodifiableSet());
+        this.domainPatterns = compileDomainRegexes(rawDomains);
+
         this.patterns = config.patterns() != null ? compilePatterns(config.patterns()) : List.of();
     }
 
@@ -39,6 +45,7 @@ public class Whitelist {
      */
     public Set<String> getAddresses() { return addresses; }
     public Set<String> getDomains() { return domains; }
+    public List<String> getDomainPatterns() { return domainPatterns.stream().map(Pattern::pattern).toList(); }
     public List<String> getPatterns() { return patterns.stream().map(Pattern::pattern).toList(); }
 
     public boolean isWhitelisted(String senderAddress) {
@@ -52,8 +59,15 @@ public class Whitelist {
         }
 
         String domain = extractDomain(lower);
-        if (!domain.isEmpty() && domains.contains(domain)) {
-            return true;
+        if (!domain.isEmpty()) {
+            if (domains.contains(domain)) {
+                return true;
+            }
+            for (Pattern domainPattern : domainPatterns) {
+                if (domainPattern.matcher(domain).matches()) {
+                    return true;
+                }
+            }
         }
 
         for (Pattern pattern : patterns) {
@@ -70,9 +84,25 @@ public class Whitelist {
         return at >= 0 ? email.substring(at + 1) : "";
     }
 
+    private static final String REGEX_PREFIX = "regex:";
+
+    private static List<Pattern> compileDomainRegexes(List<String> domains) {
+        List<Pattern> compiled = new ArrayList<>();
+        for (String domain : domains) {
+            if (domain.isBlank() || !domain.startsWith(REGEX_PREFIX)) continue;
+            compiled.add(Pattern.compile(domain.substring(REGEX_PREFIX.length()), Pattern.CASE_INSENSITIVE));
+        }
+        return Collections.unmodifiableList(compiled);
+    }
+
     private static List<Pattern> compilePatterns(List<String> wildcards) {
         List<Pattern> compiled = new ArrayList<>(wildcards.size());
         for (String wildcard : wildcards) {
+            if (wildcard.isBlank()) continue;
+            if (wildcard.startsWith(REGEX_PREFIX)) {
+                compiled.add(Pattern.compile(wildcard.substring(REGEX_PREFIX.length()), Pattern.CASE_INSENSITIVE));
+                continue;
+            }
             String lower = wildcard.toLowerCase();
             StringBuilder regex = new StringBuilder();
             for (int i = 0; i < lower.length(); i++) {
@@ -85,7 +115,7 @@ public class Whitelist {
                     regex.append(Pattern.quote(String.valueOf(c)));
                 }
             }
-            compiled.add(Pattern.compile("^" + regex + "$"));
+            compiled.add(Pattern.compile("^" + regex + "$", Pattern.CASE_INSENSITIVE));
         }
         return Collections.unmodifiableList(compiled);
     }

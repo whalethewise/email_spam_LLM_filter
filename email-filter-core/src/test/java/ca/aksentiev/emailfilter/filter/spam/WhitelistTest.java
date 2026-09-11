@@ -27,11 +27,32 @@ class WhitelistTest {
     }
 
     @Test
+    void matchesRawRegexDomain() {
+        Whitelist wl = new Whitelist(new WhitelistConfig(List.of(),
+                List.of("regex:(?:[a-z0-9-]+\\.)?(?:gov|gc)\\.ca"), List.of()));
+
+        assertThat(wl.isWhitelisted("info@health.gov.ca")).isTrue();
+        assertThat(wl.isWhitelisted("alert@cra.gc.ca")).isTrue();
+        assertThat(wl.isWhitelisted("scam@gov.ca.evil.com")).isFalse();
+        assertThat(wl.getDomains()).isEmpty();
+    }
+
+    @Test
     void matchesWildcardPattern() {
         Whitelist wl = new Whitelist(new WhitelistConfig(List.of(), List.of(), List.of("*@*.gov.ca")));
 
         assertThat(wl.isWhitelisted("info@health.gov.ca")).isTrue();
         assertThat(wl.isWhitelisted("alert@cra.gov.ca")).isTrue();
+        assertThat(wl.isWhitelisted("scam@gov.ca.evil.com")).isFalse();
+    }
+
+    @Test
+    void matchesRawRegexPattern() {
+        Whitelist wl = new Whitelist(new WhitelistConfig(List.of(), List.of(),
+                List.of("regex:.*@(?:[a-z0-9-]+\\.)?(?:gov|gc)\\.ca")));
+
+        assertThat(wl.isWhitelisted("info@health.gov.ca")).isTrue();
+        assertThat(wl.isWhitelisted("alert@cra.gc.ca")).isTrue();
         assertThat(wl.isWhitelisted("scam@gov.ca.evil.com")).isFalse();
     }
 

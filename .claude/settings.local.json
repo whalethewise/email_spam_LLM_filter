@@ -24,7 +24,35 @@
       "WebSearch",
       "WebFetch(domain:spring.io)",
       "Bash(xargs -I{} javap -p -cp {} org.springframework.ai.ollama.api.OllamaChatOptions.Builder)",
-      "Bash(./gradlew compileTestJava)"
+      "Bash(./gradlew compileTestJava)",
+      "Bash(grep \".java$\")",
+      "Bash(./gradlew --stop)",
+      "Bash(pkill -f GradleDaemon)",
+      "Bash(kill 27350 27333 27322)",
+      "Bash(grep -l 'failures=\"[1-9]' email-filter-app/build/test-results/test/*.xml)",
+      "Bash(grep -l 'errors=\"[1-9]' email-filter-app/build/test-results/test/*.xml)",
+      "Bash(grep -l 'failures=\"[1-9]' email-filter-core/build/test-results/test/*.xml)",
+      "Bash(grep -l 'errors=\"[1-9]' email-filter-core/build/test-results/test/*.xml)",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(./gradlew :email-filter-core:compileJava :email-filter-app:compileJava :email-filter-core:compileTestJava :email-filter-app:compileTestJava)",
+      "Bash(./gradlew :email-filter-core:test :email-filter-app:test)",
+      "Bash(./gradlew :email-filter-lab:compileJava)",
+      "Bash(./gradlew :email-filter-lab:build)",
+      "Bash(./gradlew :email-filter-lab:test)",
+      "Bash(./gradlew :email-filter-lab:test --rerun --info)",
+      "Bash(git pull *)",
+      "Bash(claude config *)",
+      "Bash(git grep *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"exit code: $? \\(1 = NOT ignored\\)\")",
+      "Bash(awk 'NR>=1 && NR<=42' /Users/whalethewise/Work/Source/AIEmailProcessingPlatform/email-filter-lab/src/main/resources/application.yml)",
+      "Bash(./gradlew :email-filter-app:compileJava :email-filter-app:compileTestJava -q)",
+      "Bash(xargs -I{} sh -c 'echo ==={}===; cat {}')"
     ]
-  }
+  },
+  "model": "sonnet"
 }
