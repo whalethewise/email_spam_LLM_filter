@@ -85,6 +85,10 @@ Known legitimate third-party sending domains (do NOT flag as impersonation):
 - myworkday.com — HR/recruiting platform
 - greenhouse-mail.io — recruiting platform
 - jobdivamail.com — recruiting platform
+- hackerrankforwork.com — this IS HackerRank's real enterprise/assessment
+  product ("HackerRank for Work"), used by employers including federal
+  government agencies for coding tests. It is not a lookalike domain
+  impersonating hackerrank.com — do not flag it as impersonation.
 - notify.cloudflare.com — Cloudflare notifications
 - x.com — Twitter/X (rebranded from twitter.com)
 

@@ -22,6 +22,13 @@ whitelist:
     - cognisantmd.com
     - "regex:(?:[a-z0-9-]+\\.)?paypal\\.com"
     - "regex:(?:[a-z0-9-]+\\.)?scotiabank\\.com"
+    - huntandfishontario.com
+    - ngavant.ca
+    - recordsregistry.ca
+    - hackerrankforwork.com
+    - "regex:(?:[a-z0-9-]+\\.)?mcap\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?jobleads\\.com"
+    - "regex:(?:[a-z0-9-]+\\.)?enercare\\.ca"
   patterns:
     - "regex:.*@.*\\.(?:gov|gc)\\.ca"
     - "*@*.jobs2web.com"

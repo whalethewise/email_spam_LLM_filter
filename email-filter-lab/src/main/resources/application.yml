@@ -44,7 +44,7 @@ lab:
     prompt-file: ${PROMPT_FILE:prompt.txt}
     reshuffle:
       inbox: ${RESHUFFLE_INBOX:INBOX}
-      junk: ${RESHUFFLE_JUNK:INBOX.Junk}
+      junk: ${RESHUFFLE_JUNK:INBOX.Spam}
       safe-max: ${RESHUFFLE_SAFE_MAX:3}
       review-max: ${RESHUFFLE_REVIEW_MAX:6}
       weight-preprocessor: ${RESHUFFLE_WEIGHT_PP:0.20}
