@@ -92,6 +92,37 @@ class EmailParsingServiceTest {
     }
 
     @Test
+    void stripHtmlDropsStyleAndScriptBlocksEntirely() {
+        String html = "<html><head><style>.promo { color: #ff0000; font-size: 14px; }"
+                + "</style><script>trackClick('open');</script></head>"
+                + "<body><p>Real content here</p></body></html>";
+
+        String text = service.stripHtml(html);
+
+        assertThat(text).isEqualTo("Real content here");
+        assertThat(text).doesNotContain("color", "font-size", "trackClick");
+    }
+
+    @Test
+    void stripHtmlDecodesCommonEntities() {
+        String html = "<p>Terms &amp; Conditions apply.&nbsp;It&#39;s &quot;final&quot; "
+                + "&lt;no exceptions&gt;.</p>";
+
+        String text = service.stripHtml(html);
+
+        assertThat(text).isEqualTo("Terms & Conditions apply. It's \"final\" <no exceptions>.");
+    }
+
+    @Test
+    void stripHtmlConvertsBlockTagsToLineBreaksNotSpaces() {
+        String html = "<p>First paragraph</p><p>Second paragraph</p>";
+
+        String text = service.stripHtml(html);
+
+        assertThat(text).isEqualTo("First paragraph\nSecond paragraph");
+    }
+
+    @Test
     void handlesMissingSubjectGracefully() throws Exception {
         MimeMessage message = new MimeMessage(session);
         message.setFrom(new InternetAddress("sender@example.com"));

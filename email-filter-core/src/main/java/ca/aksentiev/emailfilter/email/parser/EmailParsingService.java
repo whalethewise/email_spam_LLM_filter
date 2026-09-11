@@ -32,8 +32,13 @@ public class EmailParsingService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailParsingService.class);
 
+    private static final Pattern STYLE_SCRIPT_PATTERN =
+            Pattern.compile("(?is)<(style|script)[^>]*>.*?</\\1>");
+    private static final Pattern BR_PATTERN = Pattern.compile("(?i)<br\\s*/?>");
+    private static final Pattern BLOCK_CLOSE_PATTERN = Pattern.compile("(?i)</(p|div|tr|li)>");
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
-    private static final Pattern WHITESPACE_COLLAPSE_PATTERN = Pattern.compile("\\s{2,}");
+    private static final Pattern SPACE_TAB_COLLAPSE_PATTERN = Pattern.compile("[ \\t]+");
+    private static final Pattern BLANK_LINE_COLLAPSE_PATTERN = Pattern.compile("\\n\\s*\\n+");
     private static final int MAX_MIME_DEPTH = 10;
     private static final int MAX_MIME_PARTS = 100;
 
@@ -188,10 +193,31 @@ public class EmailParsingService {
         return content != null ? content.toString() : "";
     }
 
+    /**
+     * Converts HTML to a plain-text approximation for LLM consumption: drops
+     * {@code <style>}/{@code <script>} blocks entirely (tag and content —
+     * plain tag-stripping would otherwise leave raw CSS/JS as text), turns
+     * block-level tags into line breaks, strips remaining tags, and decodes
+     * the handful of entities that show up in real marketing email.
+     */
     String stripHtml(String html) {
-        String noTags = HTML_TAG_PATTERN.matcher(html).replaceAll(" ");
-        String collapsed = WHITESPACE_COLLAPSE_PATTERN.matcher(noTags.trim()).replaceAll(" ");
-        return collapsed.trim();
+        String noStyleScript = STYLE_SCRIPT_PATTERN.matcher(html).replaceAll("");
+        String withLineBreaks = BR_PATTERN.matcher(noStyleScript).replaceAll("\n");
+        withLineBreaks = BLOCK_CLOSE_PATTERN.matcher(withLineBreaks).replaceAll("\n");
+        String noTags = HTML_TAG_PATTERN.matcher(withLineBreaks).replaceAll("");
+        String decoded = decodeEntities(noTags);
+        String collapsedSpaces = SPACE_TAB_COLLAPSE_PATTERN.matcher(decoded).replaceAll(" ");
+        String collapsedLines = BLANK_LINE_COLLAPSE_PATTERN.matcher(collapsedSpaces).replaceAll("\n\n");
+        return collapsedLines.trim();
+    }
+
+    private String decodeEntities(String text) {
+        return text.replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'");
     }
 
     /**
